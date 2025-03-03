@@ -26,3 +26,7 @@ Extra features include:
 - Tour status management (active, upcoming, past) with visual indicators (e.g., pins or color-coding)
 - Real-time tour status updates and notifications 
 - Analytics reports
+----
+### Flutter help
+- [Flutter state managment BLOC](https://bloclibrary.dev/#/flutterbloctutorial)
+- [Flutter BLOC medium article](https://medium.com/flutter-community/flutter-bloc-for-beginners-839e22adb9f5)
