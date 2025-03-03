@@ -30,3 +30,6 @@ Extra features include:
 ### Flutter help
 - [Flutter state managment BLOC](https://bloclibrary.dev/#/flutterbloctutorial)
 - [Flutter BLOC medium article](https://medium.com/flutter-community/flutter-bloc-for-beginners-839e22adb9f5)
+- [Flutter medium community](https://medium.com/flutter-community)
+- [Flutter Codemagix CI/CD publish app to app store](https://medium.com/flutter-community/publish-your-flutter-app-to-app-store-with-codemagic-ci-cd-3db654042de5)
+- [Flutter iOS build with custom build script](https://mobisoftinfotech.com/resources/blog/flutter-ios-build-custom-script-part-1)
