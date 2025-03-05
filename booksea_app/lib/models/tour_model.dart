@@ -1,4 +1,5 @@
 class TourModel {
+  final String id;
   final DateTime date;
   final DateTime startTime;
   final DateTime endTime;
@@ -9,6 +10,7 @@ class TourModel {
   final String note;
 
   TourModel({
+    required this.id,
     required this.date,
     required this.startTime,
     required this.endTime,
@@ -19,8 +21,9 @@ class TourModel {
     required this.note,
   });
 
-  factory TourModel.fromMap(Map<String, dynamic> data) {
+  factory TourModel.fromMap(Map<String, dynamic> data, String documentId) {
     return TourModel(
+      id: documentId,
       date: DateTime.parse(data['date']),
       startTime: DateTime.parse(data['startTime']),
       endTime: DateTime.parse(data['endTime']),

@@ -1,18 +1,21 @@
 class CompanyModel {
+  final String id;
   final String companyName;
   final String companyCode;
   final String status;
   final String tier;
 
   CompanyModel({
+    required this.id,
     required this.companyName,
     required this.companyCode,
     required this.status,
     required this.tier,
   });
 
-  factory CompanyModel.fromMap(Map<String, dynamic> data) {
+  factory CompanyModel.fromMap(Map<String, dynamic> data, String documentId) {
     return CompanyModel(
+      id: documentId,
       companyName: data['companyName'],
       companyCode: data['companyCode'],
       status: data['status'],

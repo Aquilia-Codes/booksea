@@ -1,4 +1,5 @@
 class TypeModel {
+  final String id;
   final String typeName; //sets the tour name the same as the boat name + type name
   final double pricePerAdult;
   final double pricePerChild;
@@ -7,6 +8,7 @@ class TypeModel {
   final DateTime endTime;
 
   TypeModel({
+    required this.id,
     required this.typeName,
     required this.pricePerAdult,
     required this.pricePerChild,
@@ -15,8 +17,9 @@ class TypeModel {
     required this.endTime,
   });
 
-  factory TypeModel.fromMap(Map<String, dynamic> data) {
+  factory TypeModel.fromMap(Map<String, dynamic> data, String documentId) {
     return TypeModel(
+      id: documentId,
       typeName: data['typeName'],
       pricePerAdult: data['pricePerAdult'],
       pricePerChild: data['pricePerChild'],

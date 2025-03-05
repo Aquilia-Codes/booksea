@@ -1,4 +1,5 @@
 class GroupModel {
+  final String id;
   final String groupName;
   final int adultCount;
   final int childCount;
@@ -7,6 +8,7 @@ class GroupModel {
   final String bookerId;
 
   GroupModel({
+    required this.id,
     required this.groupName,
     required this.adultCount,
     required this.childCount,
@@ -15,8 +17,9 @@ class GroupModel {
     required this.bookerId,
   });
 
-  factory GroupModel.fromMap(Map<String, dynamic> data) {
+  factory GroupModel.fromMap(Map<String, dynamic> data, String documentId) {
     return GroupModel(
+      id: documentId,
       groupName: data['groupName'],
       adultCount: data['adultCount'],
       childCount: data['childCount'],
