@@ -15,7 +15,7 @@ class AccessModel {
     required this.hasAccess,
     required this.isAdmin,
     required this.isOwner, 
-    required this.companyId,
+    this.companyId = '',
     required this.email,
     required this.nickname,
     required this.provision,

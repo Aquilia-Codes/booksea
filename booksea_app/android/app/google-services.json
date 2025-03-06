@@ -12,7 +12,20 @@
           "package_name": "codes.aquilia.booksea_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "683257674665-6rho5dria0i1e0oekm3fgjkbjle7ab9a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "codes.aquilia.booksea_app",
+            "certificate_hash": "70d164d02544e09624baf144501fbe244b27a947"
+          }
+        },
+        {
+          "client_id": "683257674665-vl4nol9g3quldieouhhmu20ndf87fa57.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBChVeBUKBbks5gDK8vwW-We1sBKcCPan0"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "683257674665-vl4nol9g3quldieouhhmu20ndf87fa57.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

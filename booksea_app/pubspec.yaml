@@ -30,11 +30,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-
+  provider: ^6.0.0  # Add this line with the latest version
+  cloud_firestore: ^5.6.2  # Add this line with the latest version
+  firebase_core: ^3.9.0
+  # Add this line to include the flex_color_scheme package
+  flex_color_scheme: ^8.0.2  # Use the latest version or specify a version
+  # Add this line to include the shared_preferences package
+  shared_preferences: ^2.0.15  # Use the latest version or specify a version
+  # Add this line to include the firebase_auth package
+  firebase_auth: ^5.3.4  # Use the latest version or specify a version
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  google_sign_in: ^6.2.2
 
 dev_dependencies:
   flutter_test:
