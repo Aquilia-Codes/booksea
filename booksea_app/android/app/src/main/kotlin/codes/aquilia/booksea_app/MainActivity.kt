@@ -1,4 +1,4 @@
-package com.example.booksea_app
+package codes.aquilia.booksea_app
 
 import io.flutter.embedding.android.FlutterActivity
 

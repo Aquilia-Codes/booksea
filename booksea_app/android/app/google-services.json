@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "683257674665",
+    "project_id": "aquilia-booksea",
+    "storage_bucket": "aquilia-booksea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:683257674665:android:195dd726d340f53fba62b8",
+        "android_client_info": {
+          "package_name": "codes.aquilia.booksea_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBChVeBUKBbks5gDK8vwW-We1sBKcCPan0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
