@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:booksea_app/models/access_model.dart';
+import 'package:booksea_app/models/user_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -23,8 +23,9 @@ class AuthProvider extends ChangeNotifier {
   Status _status = Status.Uninitialized;
 
   Status get status => _status;
+ 
 
-  Stream<AccessModel> get user => _auth.authStateChanges().map(_accessFromFirebase);
+  Stream<UserModel> get user => _auth.authStateChanges().map(_userFromFirebase);
 
   AuthProvider() {
     //initialise object
@@ -35,13 +36,13 @@ class AuthProvider extends ChangeNotifier {
   }
 
   //Create user object based on the given User
-  AccessModel _accessFromFirebase(User? user) {
+  UserModel _userFromFirebase(User? user) {
     if (user == null) {
-      return AccessModel(userId: '', email: '', nickname: '', provision: 0, hasAccess: false, isAdmin: false, isOwner: false);
+      return UserModel(uid: '', email: '', nickname: '', provision: 0, hasAccess: false, isAdmin: false, isOwner: false);
     }
 
-    return AccessModel(
-        userId: user.uid,
+    return UserModel(
+        uid: user.uid,
         hasAccess: true,
         isAdmin: false,
         isOwner: false,
@@ -54,10 +55,12 @@ class AuthProvider extends ChangeNotifier {
   Future<void> onAuthStateChanged(User? firebaseUser) async {
     if (firebaseUser == null) {
       _status = Status.Unauthenticated;
+      print('User is unauthenticated');
     } else {
-      AccessModel accessModel = _accessFromFirebase(firebaseUser);
+      UserModel userModel = _userFromFirebase(firebaseUser);
       _status = Status.Authenticated;
-      await _createAccessDocumentIfNotExists(firebaseUser.uid, accessModel);
+      await _createUserDocumentIfNotExists(firebaseUser.uid, userModel);
+      print('User is authenticated');
     }
     notifyListeners();
   }
@@ -65,19 +68,17 @@ class AuthProvider extends ChangeNotifier {
   Future<dynamic> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      print('Google user: $googleUser');
+ 
 
       final GoogleSignInAuthentication? googleAuth = await googleUser?.authentication;
-      print('Google auth: $googleAuth');
+ 
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth?.accessToken,
         idToken: googleAuth?.idToken,
-      );
-      print('Credential: $credential');
+      ); 
 
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      print('User credential: $userCredential');
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential); 
 
       User? user = userCredential.user;
       if (user != null) {
@@ -91,13 +92,22 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _createAccessDocumentIfNotExists(String userId, AccessModel accessModel) async {
-    final docRef = _firestore.collection('access').doc(userId);
+  Future<void> _createUserDocumentIfNotExists(String userId, UserModel userModel) async {
+    final docRef = _firestore.collection('users').doc(userId);
     final docSnapshot = await docRef.get();
 
     if (!docSnapshot.exists) {
-      await docRef.set(accessModel.toMap());
+      await docRef.set(userModel.toMap());
     }
+  }
+
+  Future signOut() async {
+    print('active user: ${_auth.currentUser}');
+    _auth.signOut();
+    _status = Status.Unauthenticated;
+    notifyListeners();
+    print('active user: ${_auth.currentUser}');
+    return Future.delayed(Duration.zero);
   }
 }
  

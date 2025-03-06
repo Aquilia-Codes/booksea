@@ -1,10 +1,12 @@
 import 'package:booksea_app/flavour.dart';
-import 'package:booksea_app/providers/auth_provider.dart';
-import 'package:booksea_app/routes.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:booksea_app/my_app.dart';
+import 'package:booksea_app/providers/auth_provider.dart';
+import 'package:booksea_app/providers/theme_provider.dart';
+import 'package:booksea_app/services/firestore_database.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,31 +14,25 @@ void main() async {
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) async {
     runApp(
+      /*
+      * MultiProvider for top services that do not depends on any runtime values
+      * such as user uid/email.
+       */
       MultiProvider(
         providers: [
           Provider<Flavor>.value(value: Flavor.dev),
+          ChangeNotifierProvider<ThemeProvider>(
+            create: (context) => ThemeProvider(),
+          ),
           ChangeNotifierProvider<AuthProvider>(
             create: (context) => AuthProvider(),
-          ),
+          ), 
         ],
-        child: const MyApp(),
+        child: MyApp(
+          databaseBuilder: (_, uid) => FirestoreDatabase(uid: uid),
+          key: const Key('Booksea'),
+        ),
       ),
     );
   });
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Booksea App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      initialRoute: Routes.splash,
-      routes: Routes.routes,
-    );
-  }
 }

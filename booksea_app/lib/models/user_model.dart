@@ -1,7 +1,7 @@
 // not sure about this import: import 'package:meta/meta.dart';
 
-class AccessModel {
-  final String userId;
+class UserModel {
+  final String uid;
   final bool hasAccess;
   final bool isAdmin; 
   final bool isOwner; 
@@ -10,8 +10,8 @@ class AccessModel {
   final String nickname;
   final int provision;
 
-  AccessModel({
-    required this.userId,
+  UserModel({
+    required this.uid,
     required this.hasAccess,
     required this.isAdmin,
     required this.isOwner, 
@@ -21,10 +21,10 @@ class AccessModel {
     required this.provision,
   });
 
-  factory AccessModel.fromMap(Map<String, dynamic> data, String documentId) {
+  factory UserModel.fromMap(Map<String, dynamic> data, String documentId) {
     final provision = data['provision'] ?? 0;
-    return AccessModel(
-      userId: data['userId'],
+    return UserModel(
+      uid: data['uid'],
       hasAccess: data['hasAccess'],
       isAdmin: data['isAdmin'],
       isOwner: data['isOwner'], 
@@ -37,7 +37,7 @@ class AccessModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'userId': userId,
+      'uid': uid,
       'hasAccess': hasAccess,
       'isAdmin': isAdmin,
       'isOwner': isOwner, 
@@ -49,6 +49,6 @@ class AccessModel {
   }
 }
 
-// This class can be useful during the signup process. When a new user signs up, you can create an instance of `AccessModel` with their details.
+// This class can be useful during the signup process. When a new user signs up, you can create an instance of `UserModel` with their details.
 // If the user is already signed up, you can use the `fromMap` factory constructor to read their data from a database or other data source and create an `AccessModel` instance.
 // This allows you to easily manage and access user information in a structured way.

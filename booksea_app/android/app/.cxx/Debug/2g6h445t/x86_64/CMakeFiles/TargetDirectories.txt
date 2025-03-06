@@ -1,0 +1,2 @@
+C:/Users/Leonarda/AQUILIA CODES/booksea/booksea_app/android/app/.cxx/Debug/2g6h445t/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/Leonarda/AQUILIA CODES/booksea/booksea_app/android/app/.cxx/Debug/2g6h445t/x86_64/CMakeFiles/rebuild_cache.dir
