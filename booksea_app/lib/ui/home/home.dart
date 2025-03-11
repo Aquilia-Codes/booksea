@@ -31,14 +31,43 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Home'),
-            const SizedBox(height: 20),
-          ],
-        ),
+      body: Stack(
+        children: [
+          Positioned(
+            bottom: 7,
+            left: 10, // Align the dropdown to the left
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.8, // Dropdown takes 80% of the screen
+              child: DropdownButton<String>(
+                items: <String>['Option 1', 'Option 2', 'Option 3', 'Option 4'].map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (_) {
+                  // Handle dropdown change
+                },
+                hint: Text('Select an option'),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 7,
+            right: 10, // Align the button to the right
+            child: FloatingActionButton(
+              onPressed: () {
+                print('Pressed');
+              },
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: Icon(
+                Icons.add,
+                color: Colors.white,
+              ),
+              elevation: 3.0, // Set a smaller shadow
+            ),
+          ),
+        ],
       ),
     );
   }

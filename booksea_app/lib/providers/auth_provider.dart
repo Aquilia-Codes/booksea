@@ -79,7 +79,7 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _status = Status.NoCode;
       }
-    }
+    } 
     notifyListeners();
   } 
   

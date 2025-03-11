@@ -61,7 +61,7 @@ class _MyAppState extends State<MyApp> {
                   ? ThemeMode.dark
                   : ThemeMode.light,
               home: Builder(
-                builder: (context) {
+                builder: (context) { 
                   switch (authProviderRef.status) {
                     case Status.Authenticated:
                       return Scaffold(
@@ -90,6 +90,7 @@ class _MyAppState extends State<MyApp> {
                           ],
                           currentIndex: _selectedIndex,
                           onTap: _onItemTapped,
+                          
                         ),
                       );
                     case Status.Unauthenticated:

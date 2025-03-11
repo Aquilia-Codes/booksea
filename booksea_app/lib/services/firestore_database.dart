@@ -3,7 +3,10 @@ import 'package:booksea_app/models/company_model.dart';
 import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/services/firestore_path.dart';
 import 'package:booksea_app/services/firestore_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';  
+import 'package:booksea_app/models/tour_model.dart';
+import 'package:booksea_app/models/group_model.dart';
+import 'package:booksea_app/models/type_model.dart';
  
 
 String documentIdFromCurrentDate() => DateTime.now().toIso8601String();
@@ -31,6 +34,12 @@ class FirestoreDatabase {
   Future<void> setUser(UserModel user) async => _firestoreService.set(
     path: FirestorePath.user(uid), 
     data: user.toMap()
+  );
+
+  // Get the user document
+  Future<UserModel> getUser() async => _firestoreService.getDocument<UserModel>(
+    path: FirestorePath.user(uid), 
+    builder: (data, id) => UserModel.fromMap(data, id)
   );
 
   // Recieve company code and uid from user and check if the company code is valid, write the company id to the user document
@@ -64,11 +73,87 @@ class FirestoreDatabase {
       print('No company found with the provided company code');
     }
   }
-
   //checking if a company with the given companyid exists
   Future<bool> companyExists(String companyId) async {
-    final docRef = FirebaseFirestore.instance.collection('company').doc(companyId);
+    final docRef = FirebaseFirestore.instance.collection(FirestorePath.companies()).doc(companyId);
     final docSnapshot = await docRef.get();
     return docSnapshot.exists;
   }
+
+  /* Tour section */
+  
+  // create a tour, needs companyId, Tour data
+  Future<void> createTour(String companyId, String boatId, TourModel tour) async {
+    final tourRef = FirebaseFirestore.instance.collection(FirestorePath.tours(companyId, boatId)).doc();
+    await tourRef.set(tour.toMap());
+  }
+
+  //update a tour, needs companyId, boatId and tourId
+  Future<void> updateTour(String companyId, String boatId, String tourId, TourModel tour) async {
+    final tourRef = FirebaseFirestore.instance
+        .collection(FirestorePath.tours(companyId, boatId))
+        .doc(tourId);
+    await tourRef.update(tour.toMap());
+  }
+
+  // delete a tour, needs companyId, boatId and tourId
+  Future<void> deleteTour(String companyId, String boatId, String tourId) async {
+    final tourRef = FirebaseFirestore.instance
+        .collection(FirestorePath.tours(companyId, boatId))
+        .doc(tourId);
+    await tourRef.delete();
+  }
+
+  // get all tours for a specific boat by date
+  Future<List<TourModel>> getTours(String companyId, String boatId, DateTime date) async {
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection(FirestorePath.tours(companyId, boatId))
+        .where('date', isEqualTo: date)
+        .get();
+    return querySnapshot.docs.map((doc) => TourModel.fromMap(doc.data(), doc.id)).toList();
+  }
+
+  /* Group section */
+  
+  // create a group, needs companyId, boatId, tourId and group data
+  Future<void> createGroup(String companyId, String boatId, String tourId, GroupModel group) async {
+    final groupRef = FirebaseFirestore.instance.collection(FirestorePath.groups(companyId, boatId, tourId)).doc();
+    await groupRef.set(group.toMap());
+  }
+
+  // update a group, needs companyId, boatId, tourId and groupId
+  Future<void> updateGroup(String companyId, String boatId, String tourId, String groupId, GroupModel group) async {  
+    final groupRef = FirebaseFirestore.instance
+        .collection(FirestorePath.groups(companyId, boatId, tourId))
+        .doc(groupId);
+    await groupRef.update(group.toMap());
+  }
+
+  // delete a group, needs companyId, boatId, tourId and groupId
+  Future<void> deleteGroup(String companyId, String boatId, String tourId, String groupId) async {
+    final groupRef = FirebaseFirestore.instance
+        .collection(FirestorePath.groups(companyId, boatId, tourId))
+        .doc(groupId);
+    await groupRef.delete();
+  } 
+
+  // get all groups for a specific tour by tourId
+  Future<List<GroupModel>> getGroups(String companyId, String boatId, String tourId) async {
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection(FirestorePath.groups(companyId, boatId, tourId))
+        .get();
+    return querySnapshot.docs.map((doc) => GroupModel.fromMap(doc.data(), doc.id)).toList();
+  }
+
+  /* Type section */
+
+  // get tour types by companyId and boatId
+  Future<List<TypeModel>> getTourTypes(String companyId, String boatId) async {
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection(FirestorePath.tourTypes(companyId, boatId))
+        .get();
+    return querySnapshot.docs.map((doc) => TypeModel.fromMap(doc.data(), doc.id)).toList();
+  }
+ 
+
 }

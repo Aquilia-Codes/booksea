@@ -8,6 +8,7 @@ It contains all generic implementation needed based on the provided document
 path and documentID,since most of the time in FirebaseFirestore design, we will have
 documentID and path for any document and collections.
  */
+ 
 class FirestoreService {
   FirestoreService._();
   static final instance = FirestoreService._();
