@@ -22,19 +22,6 @@ class FirestoreService {
     await reference.set(data);
   }
 
-  Future<void> bulkSet({
-    required String path,
-    required List<Map<String, dynamic>> datas,
-    bool merge = false,
-  }) async {
-    final reference = FirebaseFirestore.instance.doc(path);
-    final batchSet = FirebaseFirestore.instance.batch();
-
-//    for()
-//    batchSet.
-
-    print('$path: $datas');
-  }
 
   Future<void> deleteData({required String path}) async {
     final reference = FirebaseFirestore.instance.doc(path);
@@ -44,9 +31,9 @@ class FirestoreService {
 
   Stream<List<T>> collectionStream<T>({
     required String path,
-    required T builder(Map<String, dynamic> data, String documentID),
-    Query queryBuilder(Query query)?,
-    int sort(T lhs, T rhs)?,
+    required T Function(Map<String, dynamic> data, String documentID) builder,
+    Query Function(Query query)? queryBuilder,
+    int Function(T lhs, T rhs)? sort,
   }) {
     Query query = FirebaseFirestore.instance.collection(path);
     if (queryBuilder != null) {
@@ -68,11 +55,17 @@ class FirestoreService {
 
   Stream<T> documentStream<T>({
     required String path,
-    required T builder(Map<String, dynamic> data, String documentID),
+    required T Function(Map<String, dynamic> data, String documentID) builder,
   }) {
     final DocumentReference reference = FirebaseFirestore.instance.doc(path);
     final Stream<DocumentSnapshot> snapshots = reference.snapshots();
     return snapshots.map((snapshot) =>
         builder(snapshot.data() as Map<String, dynamic>, snapshot.id));
+  }
+ 
+  Future<T> getDocument<T>({required String path, required T Function(Map<String, dynamic> data, String documentID) builder}) async {
+    final DocumentReference reference = FirebaseFirestore.instance.doc(path);
+    final DocumentSnapshot snapshot = await reference.get();
+    return builder(snapshot.data() as Map<String, dynamic>, snapshot.id);
   }
 }

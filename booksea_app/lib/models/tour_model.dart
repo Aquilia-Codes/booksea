@@ -6,6 +6,7 @@ class TourModel {
   final String tourName; //sets the tour name the same as the boat name + type name
   final String tourType;
   final int capacity;
+  final double price;
   final bool isBooked;
   final String note;
 
@@ -17,6 +18,7 @@ class TourModel {
     required this.tourName,
     required this.tourType,
     required this.capacity,
+    this.price = 0, //this is the all together price from all the groups together
     required this.isBooked,
     required this.note,
   });
@@ -30,6 +32,7 @@ class TourModel {
       tourName: data['tourName'],
       tourType: data['tourType'],
       capacity: data['capacity'],
+      price: data['price'],
       isBooked: data['isBooked'],
       note: data['note'],
     );

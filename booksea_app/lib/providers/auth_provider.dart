@@ -5,13 +5,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:booksea_app/models/user_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:booksea_app/services/firestore_database.dart';
 
 enum Status {
   Uninitialized,
   Authenticated,
   Authenticating,
   Unauthenticated,
-  Registering
+  Registering,
+  NoCode
 } 
 
 class AuthProvider extends ChangeNotifier {
@@ -43,7 +45,7 @@ class AuthProvider extends ChangeNotifier {
 
     return UserModel(
         uid: user.uid,
-        hasAccess: true,
+        hasAccess: false,
         isAdmin: false,
         isOwner: false,
         email: user.email ?? '',
@@ -55,15 +57,31 @@ class AuthProvider extends ChangeNotifier {
   Future<void> onAuthStateChanged(User? firebaseUser) async {
     if (firebaseUser == null) {
       _status = Status.Unauthenticated;
-      print('User is unauthenticated');
     } else {
       UserModel userModel = _userFromFirebase(firebaseUser);
-      _status = Status.Authenticated;
       await _createUserDocumentIfNotExists(firebaseUser.uid, userModel);
-      print('User is authenticated');
+
+      // Check the company code
+      final docRef = _firestore.collection('users').doc(firebaseUser.uid);
+      final docSnapshot = await docRef.get();
+
+      if (docSnapshot.exists) {
+        final userData = docSnapshot.data();
+        final companyId = userData?['companyId'] ?? '';
+
+        final firestoreDatabase = FirestoreDatabase(uid: firebaseUser.uid);
+
+        if (companyId.isEmpty || !await firestoreDatabase.companyExists(companyId)) {
+          _status = Status.NoCode;
+        } else {
+          _status = Status.Authenticated;
+        }
+      } else {
+        _status = Status.NoCode;
+      }
     }
     notifyListeners();
-  }
+  } 
   
   Future<dynamic> signInWithGoogle() async {
     try {

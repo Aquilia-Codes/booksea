@@ -21,6 +21,29 @@ class UserModel {
     required this.provision,
   });
 
+  UserModel copyWith({
+    String? uid,
+    bool? hasAccess,
+    bool? isAdmin,
+    bool? isOwner,
+    String? companyId,
+    String? email,
+    String? nickname,
+    int? provision,
+  }) {
+    return UserModel(
+      uid: uid ?? this.uid,
+      hasAccess: hasAccess ?? this.hasAccess,
+      isAdmin: isAdmin ?? this.isAdmin,
+      isOwner: isOwner ?? this.isOwner,
+      companyId: companyId ?? this.companyId,
+      email: email ?? this.email,
+      nickname: nickname ?? this.nickname,
+      provision: provision ?? this.provision,
+    );
+  }
+  
+
   factory UserModel.fromMap(Map<String, dynamic> data, String documentId) {
     final provision = data['provision'] ?? 0;
     return UserModel(
