@@ -1,5 +1,6 @@
 //TODO remove all the circular progress indicators where they are not needed
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_date_timeline/easy_date_timeline.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -125,10 +126,14 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
   TimeOfDay? endTime; 
   late DateTime modalSelectedDate;
   final TextEditingController _notesController = TextEditingController();
+  late DateTime startDate;
+  late DateTime endDate;
 
   @override
   void initState() {
     modalSelectedDate = widget.selectedDate;
+    startDate = widget.selectedDate; // Initialize startDate
+    endDate = widget.selectedDate; // Initialize endDate
     super.initState();
     _tourTypesAndBoatInfoFuture = widget.firestoreDatabase.getTourTypesAndBoatInfo(widget.companyId, widget.boatId);
     _tourTypesAndBoatInfoFuture.then((data) {
@@ -137,7 +142,11 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
         setState(() {
           _tourNameController.text = '${data['boatInfo'].name} ${types.first.typeName}';
           _selectedTourType = types.first.typeName;
-          _capacityController.text =  data['boatInfo'].capacity.toString(); 
+          _capacityController.text =  data['boatInfo'].capacity.toString();
+          if (startTime == null && endTime == null) { // Ensure initialization happens only once
+            startTime = TimeOfDay.fromDateTime(types.first.startTime);
+            endTime = TimeOfDay.fromDateTime(types.first.endTime);
+          }
         });
       }
     });
@@ -169,11 +178,6 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                         return Center(child: Text('No tour types available'));
                       } else {
                         List<TypeModel> types = snapshot.data!['tourTypes'];
-                        if (types.isNotEmpty) {
-                          startTime = TimeOfDay.fromDateTime(types.first.startTime);
-                          endTime = TimeOfDay.fromDateTime(types.first.endTime);
-                        }
-
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -226,7 +230,6 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                               },
                             ),
                             const SizedBox(height: 20),
-                            // Add date and time pickers for date, startTime, and endTime
                             // Start Date and Time Picker
                             SizedBox(
                               child: InputDecorator(
@@ -243,12 +246,12 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                   alignment: Alignment.centerLeft,
                                   child: ListTile(
                                     contentPadding: EdgeInsets.zero,
-                                    title: Text('${modalSelectedDate.day}.${modalSelectedDate.month}.${modalSelectedDate.year}. at ${startTime?.format(context) ?? 'Select Time'}'),
+                                    title: Text('${startDate.day}.${startDate.month}.${startDate.year} at ${startTime?.format(context) ?? 'Select Time'}'),
                                     trailing: Icon(Icons.keyboard_arrow_right),
                                     onTap: () async {
                                       DateTime? pickedDate = await showDatePicker(
                                         context: context,
-                                        initialDate: modalSelectedDate,
+                                        initialDate: startDate,
                                         firstDate: DateTime(2024),
                                         lastDate: DateTime(2101),
                                       );
@@ -259,7 +262,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                         );
                                         if (pickedTime != null) {
                                           setState(() {
-                                            modalSelectedDate = pickedDate;
+                                            startDate = pickedDate;
                                             startTime = pickedTime;
                                           });
                                         }
@@ -286,12 +289,12 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                   alignment: Alignment.centerLeft,
                                   child: ListTile(
                                     contentPadding: EdgeInsets.zero,
-                                    title: Text('${modalSelectedDate.day}.${modalSelectedDate.month}.${modalSelectedDate.year}. at ${endTime?.format(context) ?? 'Select Time'}'),
+                                    title: Text('${endDate.day}.${endDate.month}.${endDate.year} at ${endTime?.format(context) ?? 'Select Time'}'),
                                     trailing: Icon(Icons.keyboard_arrow_right),
                                     onTap: () async {
                                       DateTime? pickedDate = await showDatePicker(
                                         context: context,
-                                        initialDate: modalSelectedDate,
+                                        initialDate: endDate,
                                         firstDate: DateTime(2024),
                                         lastDate: DateTime(2101),
                                       );
@@ -302,7 +305,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                         );
                                         if (pickedTime != null) {
                                           setState(() {
-                                            modalSelectedDate = pickedDate;
+                                            endDate = pickedDate;
                                             endTime = pickedTime;
                                           });
                                         }
@@ -328,28 +331,28 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                 onPressed: () async {
                                   if (_selectedTourType != null && startTime != null && endTime != null) {
                                     final startDateTime = DateTime(
-                                      modalSelectedDate.year,
-                                      modalSelectedDate.month,
-                                      modalSelectedDate.day,
+                                      startDate.year,
+                                      startDate.month,
+                                      startDate.day,
                                       startTime!.hour,
                                       startTime!.minute,
                                     );
 
                                     final endDateTime = DateTime(
-                                      modalSelectedDate.year,
-                                      modalSelectedDate.month,
-                                      modalSelectedDate.day,
+                                      endDate.year,
+                                      endDate.month,
+                                      endDate.day,
                                       endTime!.hour,      
                                       endTime!.minute,
                                     );
 
                                     final tour = TourModel(
-                                      date: modalSelectedDate,
+                                      date: startDate, // Use startDate for the tour date
                                       tourName: _tourNameController.text,
                                       tourType: _selectedTourType!,
                                       capacity: int.tryParse(_capacityController.text) ?? 0,
-                                      startTime: startDateTime,
-                                      endTime: endDateTime,
+                                      startTime: Timestamp.fromDate(startDateTime),
+                                      endTime: Timestamp.fromDate(endDateTime),
                                       note: _notesController.text,  
                                     );
 

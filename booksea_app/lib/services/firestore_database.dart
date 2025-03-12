@@ -83,17 +83,34 @@ class FirestoreDatabase {
 
   /* Tour section */
   
-  // create a tour, needs companyId, Tour data
+  //Get all tours by companyId and boatId in a specific date range
+  Future<List<TourModel>> getTours(String companyId, String boatId, DateTime startTime, DateTime endTime) async {
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection(FirestorePath.tours(companyId, boatId))
+        .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startTime))
+        .where('endTime', isLessThanOrEqualTo: Timestamp.fromDate(endTime))
+        .get();
+    return querySnapshot.docs.map((doc) => TourModel.fromMap(doc.data(), doc.id)).toList();
+  }
+
+  //create a tour, needs companyId, boatId and tour data and before creating the tour, check if there is a tour in the same time range
   Future<void> createTour(String companyId, String boatId, TourModel tour) async {
-    // Check for existing tours in the same time range
-    final existingTours = await getTours(companyId, boatId, tour.startTime, tour.endTime); 
+    // Extend the date range to one month before and after
+    final startTime = tour.startTime.toDate().subtract(Duration(days: 30));
+    final endTime = tour.endTime.toDate().add(Duration(days: 30));
+    
+    final existingTours = await getTours(companyId, boatId, startTime, endTime);
     print('Existing tours: ${existingTours}');
+    print('Tour: ${tour.startTime} to ${tour.endTime}');
+    
     for (var existingTour in existingTours) {
-      if ((tour.startTime.isBefore(existingTour.endTime) && tour.endTime.isAfter(existingTour.startTime))) {
+      if ((tour.startTime.compareTo(existingTour.startTime) >= 0 && tour.startTime.compareTo(existingTour.endTime) < 0) ||
+          (tour.endTime.compareTo(existingTour.startTime) > 0 && tour.endTime.compareTo(existingTour.endTime) <= 0) ||
+          (tour.startTime.compareTo(existingTour.startTime) <= 0 && tour.endTime.compareTo(existingTour.endTime) >= 0)) {
         throw Exception('A tour already exists in this time range.');
       }
     }
-
+    
     final tourRef = FirebaseFirestore.instance.collection(FirestorePath.tours(companyId, boatId)).doc();
     await tourRef.set(tour.toMap());
   }
@@ -112,19 +129,6 @@ class FirestoreDatabase {
         .collection(FirestorePath.tours(companyId, boatId))
         .doc(tourId);
     await tourRef.delete();
-  }
-
-  // get all tours for a specific boat by date
-  Future<List<TourModel>> getTours(String companyId, String boatId, DateTime startTime, DateTime endTime) async {
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection(FirestorePath.tours(companyId, boatId))
-        .where('startTime', isGreaterThanOrEqualTo: startTime)
-        .where('endTime', isLessThanOrEqualTo: endTime)
-        .get();
-    print('Query snapshot size: ${querySnapshot.size}');
-    print('Query snapshot docs: ${querySnapshot.docs}');
-    print('Query snapshot docs data: ${querySnapshot.docs.map((doc) => doc.data())}');
-    return querySnapshot.docs.map((doc) => TourModel.fromMap(doc.data(), doc.id)).toList();
   }
 
   /* Group section */
