@@ -31,4 +31,10 @@ class FirestorePath {
 
   //This is the path for a specific user
   static String user(String userId) => 'users/$userId';
+
+  //This is the path for a specific boat
+  static String boat(String companyId, String boatId) => 'company/$companyId/boats/$boatId';
+
+  //This is the path for the boats collection
+  static String boats(String companyId) => 'company/$companyId/boats';
 }

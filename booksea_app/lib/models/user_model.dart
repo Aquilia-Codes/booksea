@@ -9,6 +9,7 @@ class UserModel {
   final String email;
   final String nickname;
   final int provision;
+  final List<dynamic> boatIds; //The ids of the boats that the user has access to
 
   UserModel({
     required this.uid,
@@ -19,10 +20,11 @@ class UserModel {
     required this.email,
     required this.nickname,
     required this.provision,
+    this.boatIds = const [],
   });
 
   UserModel copyWith({
-    String? uid,
+    String? uid, //TODO: Check if this is needed
     bool? hasAccess,
     bool? isAdmin,
     bool? isOwner,
@@ -30,6 +32,7 @@ class UserModel {
     String? email,
     String? nickname,
     int? provision,
+    List<dynamic>? boatIds,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -40,6 +43,7 @@ class UserModel {
       email: email ?? this.email,
       nickname: nickname ?? this.nickname,
       provision: provision ?? this.provision,
+      boatIds: boatIds ?? this.boatIds,
     );
   }
   
@@ -55,6 +59,7 @@ class UserModel {
       email: data['email'],
       nickname: data['nickname'],
       provision: provision,
+      boatIds: data['boatIds'] ?? [],
     );
   }
 
@@ -68,6 +73,7 @@ class UserModel {
       'email': email,
       'nickname': nickname,
       'provision': provision,
+      'boatIds': boatIds, 
     };
   }
 }

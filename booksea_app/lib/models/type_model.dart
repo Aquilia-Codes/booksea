@@ -1,31 +1,27 @@
-class TypeModel {
-  final String id;
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class TypeModel {   
   final String typeName; //sets the tour name the same as the boat name + type name
   final double pricePerAdult;
-  final double pricePerChild;
-  final String boatId;
+  final double pricePerChild; 
   final DateTime startTime;
   final DateTime endTime;
 
   TypeModel({
-    required this.id,
     required this.typeName,
     required this.pricePerAdult,
-    required this.pricePerChild,
-    required this.boatId,
+    required this.pricePerChild, 
     required this.startTime,
     required this.endTime,
   });
 
   factory TypeModel.fromMap(Map<String, dynamic> data, String documentId) {
     return TypeModel(
-      id: documentId,
       typeName: data['typeName'],
-      pricePerAdult: data['pricePerAdult'],
-      pricePerChild: data['pricePerChild'],
-      boatId: data['boatId'],
-      startTime: DateTime.parse(data['startTime']),
-      endTime: DateTime.parse(data['endTime']),
+      pricePerAdult: (data['pricePerAdult'] is double) ? data['pricePerAdult'] : double.parse(data['pricePerAdult'].toString()),
+      pricePerChild: (data['pricePerChild'] is double) ? data['pricePerChild'] : double.parse(data['pricePerChild'].toString()),
+      startTime: (data['startTime'] is Timestamp) ? (data['startTime'] as Timestamp).toDate() : DateTime.parse(data['startTime']),
+      endTime: (data['endTime'] is Timestamp) ? (data['endTime'] as Timestamp).toDate() : DateTime.parse(data['endTime']),
     );
   }
 
@@ -33,10 +29,12 @@ class TypeModel {
     return {
       'typeName': typeName,
       'pricePerAdult': pricePerAdult,
-      'pricePerChild': pricePerChild,
-      'boatId': boatId,
-      'startTime': startTime.toIso8601String(),
-      'endTime': endTime.toIso8601String(),
+      'pricePerChild': pricePerChild, 
+      // The following lines convert the DateTime objects `startTime` and `endTime` to ISO 8601 string format,
+      // then split the resulting string at the 'T' character to isolate the time portion (the part after 'T').
+      // This effectively extracts only the time part of the DateTime, discarding the date.
+      'startTime': startTime.toIso8601String().split('T')[1], // Return only the time part
+      'endTime': endTime.toIso8601String().split('T')[1], // Return only the time part
     };
   }
 }

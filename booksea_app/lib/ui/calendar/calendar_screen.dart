@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'calendar_sub_screen.dart';
-import 'search_and_filter_screen.dart';
-import 'package:booksea_app/providers/auth_provider.dart';
+import 'search_and_filter_screen.dart'; 
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -35,11 +34,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 print('Pressed');
               },
               backgroundColor: Theme.of(context).colorScheme.primary,
+              elevation: 3.0, 
               child: Icon(
                 isSearchIcon ? Icons.search : Icons.calendar_today,
                 color: Colors.white, // Set the icon color to white
-              ), 
-              elevation: 3.0, // Set a smaller shadow
+              ), // Set a smaller shadow
             ),
           ),
         ],

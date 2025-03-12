@@ -1,7 +1,12 @@
+//TODO remove all the circular progress indicators where they are not needed
+import 'dart:async';
 import 'package:easy_date_timeline/easy_date_timeline.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:booksea_app/providers/auth_provider.dart';
+  import 'package:booksea_app/providers/auth_provider.dart'; 
+import 'package:booksea_app/services/firestore_database.dart';
+import 'package:booksea_app/models/type_model.dart';
+import 'package:booksea_app/models/tour_model.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -9,7 +14,10 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false); 
+    final firestoreDatabase = Provider.of<FirestoreDatabase>(context, listen: false);
     DateTime selectedDate = DateTime.now();
+    String boatId = authProvider.boatIds.first;
+
 
     return Scaffold(
       appBar: PreferredSize(
@@ -23,7 +31,7 @@ class HomeScreen extends StatelessWidget {
                 initialDate: selectedDate, 
                 onDateChange: (date) {
                   // Handle date change
-                  selectedDate = date;
+                  selectedDate = date; 
                   print(selectedDate);
                 }, 
               ),
@@ -33,38 +41,52 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          Positioned(
-            bottom: 7,
-            left: 10, // Align the dropdown to the left
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.8, // Dropdown takes 80% of the screen
-              child: DropdownButton<String>(
-                items: <String>['Option 1', 'Option 2', 'Option 3', 'Option 4'].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (_) {
-                  // Handle dropdown change
-                },
-                hint: Text('Select an option'),
+          if (authProvider.boatIds.length > 1) 
+            Positioned(
+              bottom: 10,
+              left: 15, // Align the dropdown to the left
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.75, // Dropdown takes 80% of the screen
+                child: DropdownButtonFormField<String>(
+                  value: authProvider.boatIds.first, // Set the default value to the first option
+                  items: authProvider.boatIds.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    boatId = newValue!;
+                  },
+                  hint: Text('Select an option'),
+                  decoration: InputDecoration(
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Theme.of(context).colorScheme.secondaryContainer),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Theme.of(context).colorScheme.secondaryContainer),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
           Positioned(
             bottom: 7,
-            right: 10, // Align the button to the right
+            left: authProvider.boatIds.length < 2 ? (MediaQuery.of(context).size.width / 2) - 28 : 15, // Center if less than 2 boats
             child: FloatingActionButton(
-              onPressed: () {
-                print('Pressed');
+              onPressed: () async {  
+                final companyId = authProvider.companyId;
+
+                if (companyId != null) {
+                  showTourSelectionModal(context, companyId, firestoreDatabase, authProvider, selectedDate, boatId);
+                }
               },
               backgroundColor: Theme.of(context).colorScheme.primary,
+              elevation: 3.0,
               child: Icon(
                 Icons.add,
                 color: Colors.white,
-              ),
-              elevation: 3.0, // Set a smaller shadow
+              ), // Set a smaller shadow
             ),
           ),
         ],
@@ -72,3 +94,325 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
+
+class TourSelectionModal extends StatefulWidget {
+  final String companyId;
+  final FirestoreDatabase firestoreDatabase;
+  final AuthProvider authProvider;
+  final DateTime selectedDate;
+  final String boatId;
+
+  const TourSelectionModal({  
+    super.key,
+    required this.companyId,
+    required this.firestoreDatabase,
+    required this.authProvider,
+    required this.selectedDate,
+    required this.boatId,
+  });
+  
+  @override
+  // ignore: library_private_types_in_public_api
+  _TourSelectionModalState createState() => _TourSelectionModalState();
+}
+
+class _TourSelectionModalState extends State<TourSelectionModal> {
+  late Future<Map<String, dynamic>> _tourTypesAndBoatInfoFuture;
+  String? _selectedTourType;
+  final TextEditingController _capacityController = TextEditingController(); 
+  final TextEditingController _tourNameController = TextEditingController();
+  TimeOfDay? startTime;
+  TimeOfDay? endTime; 
+  late DateTime modalSelectedDate;
+  final TextEditingController _notesController = TextEditingController();
+
+  @override
+  void initState() {
+    modalSelectedDate = widget.selectedDate;
+    super.initState();
+    _tourTypesAndBoatInfoFuture = widget.firestoreDatabase.getTourTypesAndBoatInfo(widget.companyId, widget.boatId);
+    _tourTypesAndBoatInfoFuture.then((data) {
+      List<TypeModel> types = data['tourTypes'];
+      if (types.isNotEmpty) {
+        setState(() {
+          _tourNameController.text = '${data['boatInfo'].name} ${types.first.typeName}';
+          _selectedTourType = types.first.typeName;
+          _capacityController.text =  data['boatInfo'].capacity.toString(); 
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: 0.3,
+                maxHeight: constraints.maxHeight,
+              ),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: FutureBuilder<Map<String, dynamic>>(
+                    future: _tourTypesAndBoatInfoFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      } else if (snapshot.hasError) {
+                        return Center(child: Text('Error: \\${snapshot.error}'));
+                      } else if (!snapshot.hasData || snapshot.data!['tourTypes'].isEmpty) {
+                        return Center(child: Text('No tour types available'));
+                      } else {
+                        List<TypeModel> types = snapshot.data!['tourTypes'];
+                        if (types.isNotEmpty) {
+                          startTime = TimeOfDay.fromDateTime(types.first.startTime);
+                          endTime = TimeOfDay.fromDateTime(types.first.endTime);
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 20),
+                            DropdownButtonFormField<String>(
+                              value: _selectedTourType,
+                              items: types.map((TypeModel type) {
+                                return DropdownMenuItem<String>(
+                                  value: type.typeName,
+                                  child: Text(type.typeName),
+                                );
+                              }).toList(),
+                              onChanged: (newValue) {
+                                setState(() {
+                                  _selectedTourType = newValue;
+                                  TypeModel selectedType = types.firstWhere((type) => type.typeName == newValue);
+                                  _tourNameController.text = '${snapshot.data!['boatInfo'].name} ${selectedType.typeName}';
+                                  _capacityController.text = snapshot.data!['boatInfo'].capacity.toString();
+                                });
+                              },
+                              decoration: InputDecoration(
+                                labelText: 'Select a Tour Type',
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.secondaryContainer),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.secondaryContainer),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              decoration: InputDecoration(labelText: 'Tour Name'),
+                              controller: _tourNameController,
+                              onChanged: (value) {
+                                setState(() {
+                                  _tourNameController.text = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: _capacityController,
+                              decoration: InputDecoration(labelText: 'Capacity'),
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                setState(() {
+                                  _capacityController.text = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            // Add date and time pickers for date, startTime, and endTime
+                            // Start Date and Time Picker
+                            SizedBox(
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Start',
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Theme.of(context).colorScheme.secondaryContainer),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Theme.of(context).colorScheme.secondaryContainer),
+                                  ),
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: Text('${modalSelectedDate.day}.${modalSelectedDate.month}.${modalSelectedDate.year}. at ${startTime?.format(context) ?? 'Select Time'}'),
+                                    trailing: Icon(Icons.keyboard_arrow_right),
+                                    onTap: () async {
+                                      DateTime? pickedDate = await showDatePicker(
+                                        context: context,
+                                        initialDate: modalSelectedDate,
+                                        firstDate: DateTime(2024),
+                                        lastDate: DateTime(2101),
+                                      );
+                                      if (pickedDate != null) {
+                                        TimeOfDay? pickedTime = await showTimePicker(
+                                          context: context,
+                                          initialTime: startTime ?? TimeOfDay.now(),
+                                        );
+                                        if (pickedTime != null) {
+                                          setState(() {
+                                            modalSelectedDate = pickedDate;
+                                            startTime = pickedTime;
+                                          });
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // End Date and Time Picker
+                            SizedBox(
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'End',
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Theme.of(context).colorScheme.secondaryContainer),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Theme.of(context).colorScheme.secondaryContainer),
+                                  ),
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: Text('${modalSelectedDate.day}.${modalSelectedDate.month}.${modalSelectedDate.year}. at ${endTime?.format(context) ?? 'Select Time'}'),
+                                    trailing: Icon(Icons.keyboard_arrow_right),
+                                    onTap: () async {
+                                      DateTime? pickedDate = await showDatePicker(
+                                        context: context,
+                                        initialDate: modalSelectedDate,
+                                        firstDate: DateTime(2024),
+                                        lastDate: DateTime(2101),
+                                      );
+                                      if (pickedDate != null) {
+                                        TimeOfDay? pickedTime = await showTimePicker(
+                                          context: context,
+                                          initialTime: endTime ?? TimeOfDay.now(),
+                                        );
+                                        if (pickedTime != null) {
+                                          setState(() {
+                                            modalSelectedDate = pickedDate;
+                                            endTime = pickedTime;
+                                          });
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              decoration: InputDecoration(labelText: 'Notes'),
+                              controller: _notesController,
+                              onChanged: (value) {
+                                setState(() {
+                                  _notesController.text = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 20), 
+                            Center(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  if (_selectedTourType != null && startTime != null && endTime != null) {
+                                    final startDateTime = DateTime(
+                                      modalSelectedDate.year,
+                                      modalSelectedDate.month,
+                                      modalSelectedDate.day,
+                                      startTime!.hour,
+                                      startTime!.minute,
+                                    );
+
+                                    final endDateTime = DateTime(
+                                      modalSelectedDate.year,
+                                      modalSelectedDate.month,
+                                      modalSelectedDate.day,
+                                      endTime!.hour,      
+                                      endTime!.minute,
+                                    );
+
+                                    final tour = TourModel(
+                                      date: modalSelectedDate,
+                                      tourName: _tourNameController.text,
+                                      tourType: _selectedTourType!,
+                                      capacity: int.tryParse(_capacityController.text) ?? 0,
+                                      startTime: startDateTime,
+                                      endTime: endDateTime,
+                                      note: _notesController.text,  
+                                    );
+
+                                    await widget.firestoreDatabase.createTour(
+                                      widget.companyId,
+                                      widget.authProvider.boatIds.first,
+                                      tour,
+                                    );
+
+                                    if (mounted) {
+                                      Navigator.of(context).pop(); // Close the modal
+                                    }
+                                  }
+                                },
+                                child: Text('Create Tour'),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+void showTourSelectionModal(BuildContext context, String companyId, FirestoreDatabase firestoreDatabase, AuthProvider authProvider, DateTime selectedDate, String boatId ) {
+  showModalBottomSheet(
+    context: context,
+    isDismissible: true,
+    isScrollControlled: true,
+    builder: (BuildContext context) {
+      return TourSelectionModal(
+        companyId: companyId,
+        firestoreDatabase: firestoreDatabase,
+        authProvider: authProvider,
+        selectedDate: selectedDate,
+        boatId: boatId,
+      );
+    },
+  );
+} 
+
+
+
+//TODO Update the tour
+
+//TODO Delete the tour
+
+//TODO Add a group to the tour
+
+//TODO Update the group of the tour
+
+//TODO Delete the group of the tour
+
+//TODO Get all the tours for the date range selectedDate 00:00:00 - 23:59:59
+
+//TODO Make the topbar infinite scrollable from 1.1.2025 to 1.2.2026
+ 

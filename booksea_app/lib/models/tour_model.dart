@@ -1,6 +1,7 @@
-class TourModel {
-  final String id;
-  final DateTime date;
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class TourModel { 
+  final DateTime date; //TODO probably not needed, remove later
   final DateTime startTime;
   final DateTime endTime;
   final String tourName; //sets the tour name the same as the boat name + type name
@@ -10,8 +11,7 @@ class TourModel {
   final bool isBooked;
   final String note;
 
-  TourModel({
-    required this.id,
+  TourModel({ 
     required this.date,
     required this.startTime,
     required this.endTime,
@@ -19,21 +19,20 @@ class TourModel {
     required this.tourType,
     required this.capacity,
     this.price = 0, //this is the all together price from all the groups together
-    required this.isBooked,
+    this.isBooked = false,
     required this.note,
   });
 
   factory TourModel.fromMap(Map<String, dynamic> data, String documentId) {
-    return TourModel(
-      id: documentId,
-      date: DateTime.parse(data['date']),
-      startTime: DateTime.parse(data['startTime']),
-      endTime: DateTime.parse(data['endTime']),
+    return TourModel( 
+      date: DateTime.parse(data['date']), 
+      startTime: (data['startTime'] is Timestamp) ? (data['startTime'] as Timestamp).toDate() : DateTime.parse(data['startTime']),
+      endTime: (data['endTime'] is Timestamp) ? (data['endTime'] as Timestamp).toDate() : DateTime.parse(data['endTime']),
       tourName: data['tourName'],
       tourType: data['tourType'],
       capacity: data['capacity'],
-      price: data['price'],
-      isBooked: data['isBooked'],
+      price: (data['price'] is double) ? data['price'] : double.parse(data['price'].toString()),
+      isBooked: data['isBooked'] ?? false,
       note: data['note'],
     );
   }

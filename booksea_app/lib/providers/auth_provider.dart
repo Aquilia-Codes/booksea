@@ -24,8 +24,15 @@ class AuthProvider extends ChangeNotifier {
   //Default status
   Status _status = Status.Uninitialized;
 
+  String? _companyId; // Add a private variable to store the company ID
+
+  List<String> _boatIds = []; // Declare and initialize _boatIds as a List<String>
+
+  String? get userId => _auth.currentUser?.uid;
+
   Status get status => _status;
- 
+
+  List<String> get boatIds => _boatIds; // Ensure the getter returns List<String>
 
   Stream<UserModel> get user => _auth.authStateChanges().map(_userFromFirebase);
 
@@ -67,11 +74,16 @@ class AuthProvider extends ChangeNotifier {
 
       if (docSnapshot.exists) {
         final userData = docSnapshot.data();
-        final companyId = userData?['companyId'] ?? '';
+        _companyId = userData?['companyId'] ?? ''; // Set the company ID
+        _boatIds = List<String>.from(userData?['boatIds'] ?? []); // Set the boat IDs as List<String>
+
+        // Add logging to check the fetched data
+        print('Fetched companyId: $_companyId');
+        print('Fetched boatIds: $_boatIds');
 
         final firestoreDatabase = FirestoreDatabase(uid: firebaseUser.uid);
 
-        if (companyId.isEmpty || !await firestoreDatabase.companyExists(companyId)) {
+        if (_companyId!.isEmpty || !await firestoreDatabase.companyExists(_companyId!)) {
           _status = Status.NoCode;
         } else {
           _status = Status.Authenticated;
@@ -127,5 +139,7 @@ class AuthProvider extends ChangeNotifier {
     print('active user: ${_auth.currentUser}');
     return Future.delayed(Duration.zero);
   }
+
+  String? get companyId => _companyId; // Getter to access the company ID 
 }
  

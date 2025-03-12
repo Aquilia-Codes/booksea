@@ -1,17 +1,14 @@
-class BoatModel {
-  final String id;
+class BoatModel { 
   final String name; //sets the tour name the same as the boat name + type name
   final int capacity;
 
-  BoatModel({
-    required this.id,
+  BoatModel({ 
     required this.name,
     required this.capacity,
   });
 
-  factory BoatModel.fromMap(Map<String, dynamic> data, String documentId) {
-    return BoatModel(
-      id: documentId,
+  factory BoatModel.fromMap(Map<String, dynamic> data, String id) {
+    return BoatModel( 
       name: data['name'],
       capacity: data['capacity'],
     );

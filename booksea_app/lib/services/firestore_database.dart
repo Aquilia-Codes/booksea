@@ -1,4 +1,5 @@
 import 'dart:async'; 
+import 'package:booksea_app/models/boat_model.dart';
 import 'package:booksea_app/models/company_model.dart';
 import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/services/firestore_path.dart';
@@ -67,7 +68,7 @@ class FirestoreDatabase {
       print('Company is ${company.companyCode}');
       if (company.companyCode == companyCode) {
         print('Company code is valid');
-        await setUser(user.copyWith(companyId: company.id));
+        await setUser(user.copyWith(companyId: companyDoc.id));
       }
     } else {
       print('No company found with the provided company code');
@@ -84,6 +85,15 @@ class FirestoreDatabase {
   
   // create a tour, needs companyId, Tour data
   Future<void> createTour(String companyId, String boatId, TourModel tour) async {
+    // Check for existing tours in the same time range
+    final existingTours = await getTours(companyId, boatId, tour.startTime, tour.endTime); 
+    print('Existing tours: ${existingTours}');
+    for (var existingTour in existingTours) {
+      if ((tour.startTime.isBefore(existingTour.endTime) && tour.endTime.isAfter(existingTour.startTime))) {
+        throw Exception('A tour already exists in this time range.');
+      }
+    }
+
     final tourRef = FirebaseFirestore.instance.collection(FirestorePath.tours(companyId, boatId)).doc();
     await tourRef.set(tour.toMap());
   }
@@ -105,11 +115,15 @@ class FirestoreDatabase {
   }
 
   // get all tours for a specific boat by date
-  Future<List<TourModel>> getTours(String companyId, String boatId, DateTime date) async {
+  Future<List<TourModel>> getTours(String companyId, String boatId, DateTime startTime, DateTime endTime) async {
     final querySnapshot = await FirebaseFirestore.instance
         .collection(FirestorePath.tours(companyId, boatId))
-        .where('date', isEqualTo: date)
+        .where('startTime', isGreaterThanOrEqualTo: startTime)
+        .where('endTime', isLessThanOrEqualTo: endTime)
         .get();
+    print('Query snapshot size: ${querySnapshot.size}');
+    print('Query snapshot docs: ${querySnapshot.docs}');
+    print('Query snapshot docs data: ${querySnapshot.docs.map((doc) => doc.data())}');
     return querySnapshot.docs.map((doc) => TourModel.fromMap(doc.data(), doc.id)).toList();
   }
 
@@ -148,12 +162,32 @@ class FirestoreDatabase {
   /* Type section */
 
   // get tour types by companyId and boatId
-  Future<List<TypeModel>> getTourTypes(String companyId, String boatId) async {
-    final querySnapshot = await FirebaseFirestore.instance
+  Future<Map<String, dynamic>> getTourTypesAndBoatInfo(String companyId, String boatId) async {
+    final tourTypesSnapshot = await FirebaseFirestore.instance
         .collection(FirestorePath.tourTypes(companyId, boatId))
+        .get(); 
+    final boatSnapshot = await FirebaseFirestore.instance
+        .collection(FirestorePath.boats(companyId))
+        .doc(boatId)
         .get();
-    return querySnapshot.docs.map((doc) => TypeModel.fromMap(doc.data(), doc.id)).toList();
+    
+    final List<TypeModel> tourTypes = tourTypesSnapshot.docs
+        .map((doc) => TypeModel.fromMap(doc.data(), doc.id))
+        .toList();
+    
+    final boatInfo = boatSnapshot.exists ? BoatModel.fromMap(boatSnapshot.data()!, boatSnapshot.id) : null;
+    
+    return {
+      'tourTypes': tourTypes,
+      'boatInfo': boatInfo,
+    };
   }
- 
-
+  /* Boat section */
+  //Create a boat, needs companyId and boat data
+  Future<void> createBoat(String companyId, BoatModel boat) async {
+    final boatRef = FirebaseFirestore.instance.collection(FirestorePath.boats(companyId)).doc(boat.name);
+    await boatRef.set(boat.toMap());
+  }
+  
+  
 }
