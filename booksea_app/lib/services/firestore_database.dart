@@ -92,6 +92,23 @@ class FirestoreDatabase {
         .get();
     return querySnapshot.docs.map((doc) => TourModel.fromMap(doc.data(), doc.id)).toList();
   }
+  
+  // Get all tours by companyId and boatId in a specific date range in a stream
+  Stream<List<TourModel>> getToursStream(String companyId, String boatId, DateTime startTime, DateTime endTime) {
+    return FirebaseFirestore.instance
+        .collection(FirestorePath.tours(companyId, boatId))
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => TourModel.fromMap(doc.data(), doc.id))
+            .where((tour) => 
+                (tour.startTime.toDate().isBefore(endTime) || tour.startTime.toDate().isAtSameMomentAs(endTime)) &&
+                (tour.endTime.toDate().isAfter(startTime) || tour.endTime.toDate().isAtSameMomentAs(startTime))
+            )
+            .toList());
+  }
+  
+  
+
 
   //create a tour, needs companyId, boatId and tour data and before creating the tour, check if there is a tour in the same time range
   Future<void> createTour(String companyId, String boatId, TourModel tour) async {

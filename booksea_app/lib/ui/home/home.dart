@@ -1,7 +1,6 @@
 //TODO remove all the circular progress indicators where they are not needed
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:easy_date_timeline/easy_date_timeline.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
   import 'package:booksea_app/providers/auth_provider.dart'; 
@@ -9,32 +8,48 @@ import 'package:booksea_app/services/firestore_database.dart';
 import 'package:booksea_app/models/type_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false); 
-    final firestoreDatabase = Provider.of<FirestoreDatabase>(context, listen: false);
-    DateTime selectedDate = DateTime.now();
-    String boatId = authProvider.boatIds.first;
+  _HomeScreenState createState() => _HomeScreenState();
+}
 
+class _HomeScreenState extends State<HomeScreen> {
+  late DateTime selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedDate = DateTime.now();
+    
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final firestoreDatabase = Provider.of<FirestoreDatabase>(context, listen: false);
+    String boatId = authProvider.boatIds.first;
 
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(200.0),
+        preferredSize: const Size.fromHeight(160.0),
         child: AppBar(
           flexibleSpace: SizedBox(
-            height: 200.0,
+            height: 180.0,
             child: Padding(
               padding: const EdgeInsets.only(top: 30.0),
-              child: EasyDateTimeLine(
-                initialDate: selectedDate, 
-                onDateChange: (date) {
-                  // Handle date change
-                  selectedDate = date; 
-                  print(selectedDate);
-                }, 
+              child: Material(
+                elevation: 2.0,
+                shadowColor: Theme.of(context).colorScheme.tertiaryContainer,
+                child: InfiniteDatePicker(
+                  initialDate: selectedDate,
+                  onDateChange: (date) {
+                    setState(() {
+                      selectedDate = date;
+                    }); 
+                  },
+                ),
               ),
             ),
           ),
@@ -42,14 +57,20 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          if (authProvider.boatIds.length > 1) 
+          TourDataStream(
+            companyId: authProvider.companyId!,
+            boatId: boatId,
+            selectedDate: selectedDate,
+            firestoreDatabase: firestoreDatabase,
+          ),
+          if (authProvider.boatIds.length > 1)
             Positioned(
               bottom: 10,
-              left: 15, // Align the dropdown to the left
+              left: 15,
               child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.75, // Dropdown takes 80% of the screen
+                width: MediaQuery.of(context).size.width * 0.75,
                 child: DropdownButtonFormField<String>(
-                  value: authProvider.boatIds.first, // Set the default value to the first option
+                  value: authProvider.boatIds.first,
                   items: authProvider.boatIds.map((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
@@ -57,7 +78,9 @@ class HomeScreen extends StatelessWidget {
                     );
                   }).toList(),
                   onChanged: (newValue) {
-                    boatId = newValue!;
+                    setState(() {
+                      boatId = newValue!;
+                    });
                   },
                   hint: Text('Select an option'),
                   decoration: InputDecoration(
@@ -73,9 +96,9 @@ class HomeScreen extends StatelessWidget {
             ),
           Positioned(
             bottom: 7,
-            left: authProvider.boatIds.length < 2 ? (MediaQuery.of(context).size.width / 2) - 28 : 15, // Center if less than 2 boats
+            left: authProvider.boatIds.length < 2 ? (MediaQuery.of(context).size.width / 2) - 28 : 15,
             child: FloatingActionButton(
-              onPressed: () async {  
+              onPressed: () async {
                 final companyId = authProvider.companyId;
 
                 if (companyId != null) {
@@ -87,12 +110,144 @@ class HomeScreen extends StatelessWidget {
               child: Icon(
                 Icons.add,
                 color: Colors.white,
-              ), // Set a smaller shadow
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class InfiniteDatePicker extends StatefulWidget {
+  final DateTime initialDate;
+  final Function(DateTime) onDateChange;
+
+  const InfiniteDatePicker({super.key, required this.initialDate, required this.onDateChange});
+
+  @override
+  InfiniteDatePickerState createState() => InfiniteDatePickerState();
+}
+
+class InfiniteDatePickerState extends State<InfiniteDatePicker> {
+  late DateTime selectedDate;
+  final DateTime startDate = DateTime(2025, 1, 1);
+  final DateTime endDate = DateTime(2026, 2, 1);
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedDate = widget.initialDate;
+    _scrollController = ScrollController(
+      initialScrollOffset: _calculateInitialOffset(),
+    );
+  }
+
+  double _calculateInitialOffset() {
+    final today = DateTime.now();
+    if (today.isBefore(startDate)) {
+      return 0.0;
+    }
+    final daysFromStart = today.difference(startDate).inDays;
+    return daysFromStart * 78.9; // Assuming each item is 78.9 pixels wide
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) { 
+
+    return Stack(
+      children: [
+        Positioned(
+          left: 0,
+          bottom:20,
+          height: 125.0, // 70% of the top bar's height (200.0 * 0.7)
+          child: Image.asset(
+            'assets/Wave.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+        Column(
+          children: [ 
+            Expanded(child: Container( 
+            )), // This will push the SizedBox to the bottom
+            SizedBox( 
+              height: 115.0,
+              child: Column(
+                children: [ 
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      scrollDirection: Axis.horizontal,
+                      itemCount: endDate.difference(startDate).inDays + 1,
+                      itemBuilder: (context, index) {
+                        final date = startDate.add(Duration(days: index));
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedDate = date;
+                            });
+                            widget.onDateChange(date);
+                          },
+                          child: Container(
+                            width: 55, 
+                            margin: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(30), // Reduced radius for smoother edges
+                              boxShadow: [
+                                BoxShadow(
+                                  color: selectedDate == date ? Theme.of(context).colorScheme.primaryContainer : Theme.of(context).colorScheme.primary,
+                                  blurRadius: 6, // Increased blur for smoother appearance
+                                  offset: Offset(0, 1), // Slight offset for a softer shadow
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  date.day.toString(),
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: selectedDate == date ? Theme.of(context).colorScheme.primary : DateTime.now().day == date.day && DateTime.now().month == date.month && DateTime.now().year == date.year ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary.withOpacity(0.5)), 
+                                ),
+                                Text(
+                                  _getMonthName(date.month),
+                                  style: TextStyle(fontSize: 12, color: selectedDate == date ? Theme.of(context).colorScheme.primary : DateTime.now().day == date.day && DateTime.now().month == date.month && DateTime.now().year == date.year ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Container(
+                    width: double.infinity,
+                    height: 20.0,  
+                    color: Theme.of(context).colorScheme.tertiaryContainer,  
+                    child: Center(child: Text('${selectedDate.day}.${selectedDate.month}.${selectedDate.year}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.tertiary),)),
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _getMonthName(int month) {
+    const List<String> monthNames = [
+      'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+      'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'
+    ];
+    return monthNames[month - 1];
   }
 }
 
@@ -173,7 +328,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return Center(child: CircularProgressIndicator());
                       } else if (snapshot.hasError) {
-                        return Center(child: Text('Error: \\${snapshot.error}'));
+                        return Center(child: Text('Error: \${snapshot.error}'));
                       } else if (!snapshot.hasData || snapshot.data!['tourTypes'].isEmpty) {
                         return Center(child: Text('No tour types available'));
                       } else {
@@ -346,8 +501,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                       endTime!.minute,
                                     );
 
-                                    final tour = TourModel(
-                                      date: startDate, // Use startDate for the tour date
+                                    final tour = TourModel( 
                                       tourName: _tourNameController.text,
                                       tourType: _selectedTourType!,
                                       capacity: int.tryParse(_capacityController.text) ?? 0,
@@ -385,7 +539,6 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
     );
   }
 }
-
 void showTourSelectionModal(BuildContext context, String companyId, FirestoreDatabase firestoreDatabase, AuthProvider authProvider, DateTime selectedDate, String boatId ) {
   showModalBottomSheet(
     context: context,
@@ -403,6 +556,101 @@ void showTourSelectionModal(BuildContext context, String companyId, FirestoreDat
   );
 } 
 
+//Tour data stream scrollable list
+class TourDataStream extends StatelessWidget {
+  final String companyId;
+  final String boatId;
+  final DateTime selectedDate;
+  final FirestoreDatabase firestoreDatabase;
+
+  TourDataStream({required this.companyId, required this.boatId, required this.selectedDate, required this.firestoreDatabase});
+
+  @override
+
+  Widget build(BuildContext context) {
+
+    return StreamBuilder<List<TourModel>>(
+      stream: firestoreDatabase.getToursStream(
+        companyId, 
+        boatId, 
+        DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 0, 0, 0), 
+        DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 23, 59, 59)
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(child: Text('No tour data available'));
+        } else {
+          print('Tour data: ${snapshot.data}');
+          return ListView.builder(
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              final tour = snapshot.data![index];
+              return TourCard(tour: tour);
+            },
+          );
+        }
+      },
+    );
+  }
+}
+
+class TourCard extends StatelessWidget {
+  final TourModel tour;
+
+  TourCard({required this.tour});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card( 
+      margin: EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
+      child: Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: Column(
+          children: [ 
+                  Container(
+                    height: 40, // Set a fixed height for the row
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center, // Centering vertically
+                      children: [
+                        Expanded(child: Text(tour.tourName  )), // Centering text
+                        Expanded(child: Text('${tour.filled} / ${tour.capacity}', textAlign: TextAlign.end)),
+                      ],
+                    ),
+                  ), 
+                  Container(
+                    height: 40, // Set a fixed height for the row
+                    child: Center(child: Text('${tour.startTime.toDate().hour}:${tour.startTime.toDate().minute.toString().padLeft(2, '0')} - ${tour.endTime.toDate().hour}:${tour.endTime.toDate().minute.toString().padLeft(2, '0')}')), 
+                  ),
+                  Container(
+                    height: 40, // Set a fixed height for the row
+                    child: Center(
+                      child: Text(tour.startTime.toDate().toLocal().toString().split(' ')[0] == tour.endTime.toDate().toLocal().toString().split(' ')[0]
+                          ? tour.startTime.toDate().toLocal().toString().split(' ')[0]
+                          : '${tour.startTime.toDate().toLocal().toString().split(' ')[0]} - ${tour.endTime.toDate().toLocal().toString().split(' ')[0]}'),
+                    ),
+                  ),
+                  Container(
+                    height: 40, // Set a fixed height for the row
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center, // Centering vertically
+                      children: [
+                        Expanded(child: Text(tour.tourType)), // Centering text
+                        IconButton(onPressed: () {}, icon: Icon(Icons.open_in_browser))
+                      ],
+                    ),
+                  )
+                ], 
+        ),
+      ),
+    );
+  }
+}
 
 
 //TODO Update the tour

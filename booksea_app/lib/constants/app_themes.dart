@@ -15,8 +15,7 @@ import 'package:flutter/material.dart';
 ///   theme: AppTheme.light,
 ///   darkTheme: AppTheme.dark,
 /// );
-class AppTheme {
-  AppTheme._();
+abstract final class AppTheme {
   // The defined light theme.
   static ThemeData light = FlexThemeData.light(
   colors: const FlexSchemeColor( // Custom colors
@@ -27,7 +26,7 @@ class AppTheme {
     secondaryContainer: Color(0xFFEBF3FF),
     secondaryLightRef: Color(0xFF005FEE),
     tertiary: Color(0xFFFFFFFF),
-    tertiaryContainer: Color(0xFF007BFF),
+    tertiaryContainer: Color(0xFF2890FF),
     tertiaryLightRef: Color(0xFFFFFFFF),
     appBarColor: Color(0xFFEBF3FF),
     error: Color(0xFFBA1A1A),
