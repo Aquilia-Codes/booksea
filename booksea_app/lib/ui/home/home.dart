@@ -1209,7 +1209,6 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _paymentStatusController =
       TextEditingController();
-  final TextEditingController _numberController = TextEditingController();
   final TextEditingController _mobileNumberController = TextEditingController();
 
   @override
@@ -1219,7 +1218,6 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
     _childCountController.dispose();
     _priceController.dispose();
     _paymentStatusController.dispose();
-    _numberController.dispose();
     _mobileNumberController.dispose();
     super.dispose();
   }
@@ -1266,7 +1264,6 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
             children: [
               Expanded(
                 child: IntlPhoneField(
-                  controller: _numberController,
                   disableLengthCheck: true,
                   decoration: InputDecoration(
                     labelText: 'Mobile Number',
@@ -1277,7 +1274,6 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   initialCountryCode: 'US',
                   onChanged: (phone) {
                     setState(() {
-                      _mobileNumberController.dispose();
                       _mobileNumberController.text = phone.completeNumber;
                     });
                   },
@@ -1294,8 +1290,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                 price: double.tryParse(_priceController.text) ?? 0.0,
                 paymentStatus: _paymentStatusController.text,
                 bookerId: '',
-                mobileNumber:
-                    _mobileNumberController.text + _numberController.text,
+                mobileNumber: _mobileNumberController.text,
               );
               if (widget.tour.filled + group.adultCount <=
                   widget.tour.capacity) {
