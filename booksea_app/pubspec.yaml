@@ -44,6 +44,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_sign_in: ^6.2.2
   easy_date_timeline: ^2.0.9
+  intl_phone_field: ^3.2.0
 
 dev_dependencies:
   flutter_test:

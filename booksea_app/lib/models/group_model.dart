@@ -1,10 +1,10 @@
-class GroupModel {  
+class GroupModel {
   final String groupName;
   final int adultCount;
   final int childCount;
   final double price;
   final String paymentStatus;
-  final String bookerId;
+  String bookerId;
   final String mobileNumber;
 
   GroupModel({
@@ -13,7 +13,7 @@ class GroupModel {
     required this.childCount,
     required this.price,
     required this.paymentStatus,
-    required this.bookerId,
+    this.bookerId = '',
     required this.mobileNumber,
   });
 
