@@ -236,7 +236,34 @@ class FirestoreDatabase {
     final groupRef = FirebaseFirestore.instance
         .collection(FirestorePath.groups(companyId, boatId, tourId))
         .doc(groupId);
-    await groupRef.delete();
+
+    final groupSnapshot = await groupRef.get();
+    if (groupSnapshot.exists) {
+      final groupData = groupSnapshot.data() as Map<String, dynamic>;
+      final adultCount = groupData['adultCount'] ?? 0;
+      final groupPrice = groupData['price'] ?? 0.0;
+
+      await groupRef.delete();
+
+      final tourRef = FirebaseFirestore.instance
+          .collection(FirestorePath.tours(companyId, boatId))
+          .doc(tourId);
+
+      final tourSnapshot = await tourRef.get();
+      if (tourSnapshot.exists) {
+        final tourData = tourSnapshot.data() as Map<String, dynamic>;
+        final currentFilled = tourData['filled'] ?? 0;
+        final currentPrice = tourData['price'] ?? 0.0;
+
+        final newFilled = currentFilled - adultCount;
+        final updatedPrice = currentPrice - groupPrice;
+
+        await tourRef.update({
+          'filled': newFilled,
+          'price': updatedPrice,
+        });
+      }
+    }
   }
 
   // get all groups for a specific tour by tourId

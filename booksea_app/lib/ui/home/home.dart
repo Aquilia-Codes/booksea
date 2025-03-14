@@ -1079,6 +1079,7 @@ class GroupDataStream extends StatelessWidget {
     return StreamBuilder<List<GroupModel>>(
       stream: firestoreDatabase.getGroups(companyId, boatId, tourId),
       builder: (context, snapshot) {
+        print(snapshot.data);
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
             child: Text('Add Groups!',
@@ -1096,6 +1097,7 @@ class GroupDataStream extends StatelessWidget {
               physics: NeverScrollableScrollPhysics(),
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
+                print(snapshot.data![index]);
                 return GroupCard(
                     group: snapshot.data![index],
                     companyId: companyId,
@@ -1129,7 +1131,8 @@ class GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => openGroupEditPopup(context, group),
+      onTap: () => openGroupPopup(
+          context, group, companyId, boatId, tourId, firestoreDatabase),
       child: Card(
         margin:
             EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
@@ -1144,7 +1147,7 @@ class GroupCard extends StatelessWidget {
               Text('${group.price.round()}€'),
               Text(group.paymentStatus),
               Text(group.bookerId),
-              Text(group.mobileNumber),
+              Text('${group.countryDialogCode} ${group.mobileNumber}'),
             ],
           ),
         ),
@@ -1210,7 +1213,9 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   final TextEditingController _paymentStatusController =
       TextEditingController();
   final TextEditingController _mobileNumberController = TextEditingController();
-
+  final TextEditingController _countryCodeController = TextEditingController();
+  final TextEditingController _countryDialogCodeController =
+      TextEditingController();
   @override
   void dispose() {
     _groupNameController.dispose();
@@ -1219,6 +1224,8 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
     _priceController.dispose();
     _paymentStatusController.dispose();
     _mobileNumberController.dispose();
+    _countryCodeController.dispose();
+    _countryDialogCodeController.dispose();
     super.dispose();
   }
 
@@ -1264,6 +1271,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
             children: [
               Expanded(
                 child: IntlPhoneField(
+                  controller: _mobileNumberController,
                   disableLengthCheck: true,
                   decoration: InputDecoration(
                     labelText: 'Mobile Number',
@@ -1272,9 +1280,11 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                     ),
                   ),
                   initialCountryCode: 'US',
-                  onChanged: (phone) {
+                  onCountryChanged: (country) {
                     setState(() {
-                      _mobileNumberController.text = phone.completeNumber;
+                      _countryCodeController.text = country.code;
+                      _countryDialogCodeController.text =
+                          '+${country.dialCode}';
                     });
                   },
                 ),
@@ -1291,6 +1301,8 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                 paymentStatus: _paymentStatusController.text,
                 bookerId: '',
                 mobileNumber: _mobileNumberController.text,
+                countryCode: _countryCodeController.text,
+                countryDialogCode: _countryDialogCodeController.text,
               );
               if (widget.tour.filled + group.adultCount <=
                   widget.tour.capacity) {
@@ -1313,33 +1325,238 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   }
 }
 
-void openGroupEditPopup(BuildContext context, GroupModel group) {
+void openGroupEditPopup(
+    BuildContext context,
+    GroupModel group,
+    String companyId,
+    String boatId,
+    String tourId,
+    FirestoreDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return GroupEditPopup(group: group);
+      return AlertDialog(
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: GroupEditPopup(
+            group: group,
+            companyId: companyId,
+            boatId: boatId,
+            tourId: tourId,
+            firestoreDatabase: firestoreDatabase,
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('Cancel'),
+          ),
+        ],
+      );
     },
   );
 }
 
-class GroupEditPopup extends StatelessWidget {
+class GroupEditPopup extends StatefulWidget {
   final GroupModel group;
+  final String companyId;
+  final String boatId;
+  final String tourId;
+  final FirestoreDatabase firestoreDatabase;
 
-  GroupEditPopup({required this.group});
+  GroupEditPopup({
+    required this.group,
+    required this.companyId,
+    required this.boatId,
+    required this.tourId,
+    required this.firestoreDatabase,
+  });
+
+  @override
+  _GroupEditPopupState createState() => _GroupEditPopupState();
+}
+
+class _GroupEditPopupState extends State<GroupEditPopup> {
+  late TextEditingController _groupNameController;
+  late TextEditingController _adultCountController;
+  late TextEditingController _childCountController;
+  late TextEditingController _priceController;
+  late TextEditingController _paymentStatusController;
+  late TextEditingController _mobileNumberController;
+  late TextEditingController _countryCodeController;
+  late TextEditingController _countryDialogCodeController;
+  @override
+  void initState() {
+    super.initState();
+    _groupNameController = TextEditingController(text: widget.group.groupName);
+    _adultCountController =
+        TextEditingController(text: widget.group.adultCount.toString());
+    _childCountController =
+        TextEditingController(text: widget.group.childCount.toString());
+    _priceController =
+        TextEditingController(text: widget.group.price.toString());
+    _paymentStatusController =
+        TextEditingController(text: widget.group.paymentStatus);
+    _mobileNumberController =
+        TextEditingController(text: widget.group.mobileNumber);
+    _countryCodeController =
+        TextEditingController(text: widget.group.countryCode);
+    _countryDialogCodeController =
+        TextEditingController(text: widget.group.countryDialogCode);
+  }
+
+  @override
+  void dispose() {
+    _groupNameController.dispose();
+    _adultCountController.dispose();
+    _childCountController.dispose();
+    _priceController.dispose();
+    _paymentStatusController.dispose();
+    _mobileNumberController.dispose();
+    _countryCodeController.dispose();
+    _countryDialogCodeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Text(group.groupName),
+      body: Container(
+        child: Column(
+          children: [
+            TextField(
+              controller: _groupNameController,
+              decoration: InputDecoration(labelText: 'Group Name'),
+            ),
+            TextField(
+              controller: _adultCountController,
+              decoration: InputDecoration(labelText: 'Adult Count'),
+            ),
+            TextField(
+              controller: _childCountController,
+              decoration: InputDecoration(labelText: 'Child Count'),
+            ),
+            TextField(
+              controller: _priceController,
+              decoration: InputDecoration(labelText: 'Price'),
+            ),
+            DropdownButtonFormField<String>(
+              value: _paymentStatusController.text.isNotEmpty
+                  ? _paymentStatusController.text
+                  : null,
+              items: ['Paid', 'Reserved', 'Cancelled'].map((String status) {
+                return DropdownMenuItem<String>(
+                  value: status,
+                  child: Text(status),
+                );
+              }).toList(),
+              onChanged: (newValue) {
+                setState(() {
+                  _paymentStatusController.text = newValue!;
+                });
+              },
+              decoration: InputDecoration(labelText: 'Payment Status'),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: IntlPhoneField(
+                    controller: _mobileNumberController,
+                    disableLengthCheck: true,
+                    decoration: InputDecoration(
+                      labelText: 'Mobile Number',
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(),
+                      ),
+                    ),
+                    initialCountryCode: widget.group.countryCode,
+                    onCountryChanged: (country) {
+                      setState(() {
+                        _countryCodeController.text = country.code;
+                        _countryDialogCodeController.text =
+                            '+${country.dialCode}';
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final updatedGroup = GroupModel(
+                  groupName: _groupNameController.text,
+                  adultCount: int.tryParse(_adultCountController.text) ?? 0,
+                  childCount: int.tryParse(_childCountController.text) ?? 0,
+                  price: double.tryParse(_priceController.text) ?? 0.0,
+                  paymentStatus: _paymentStatusController.text,
+                  bookerId: widget.group.bookerId,
+                  mobileNumber: _mobileNumberController.text,
+                  countryCode: _countryCodeController.text,
+                  countryDialogCode: _countryDialogCodeController.text,
+                );
+                widget.firestoreDatabase.updateGroup(
+                    widget.companyId,
+                    widget.boatId,
+                    widget.tourId,
+                    widget.group.id,
+                    updatedGroup);
+                Navigator.of(context).pop();
+              },
+              child: Text('Update Group'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-void openGroupPopup(BuildContext context, GroupModel group) {
+void openGroupPopup(BuildContext context, GroupModel group, String companyId,
+    String boatId, String tourId, FirestoreDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return GroupPopup(group: group);
+      return AlertDialog(
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: GroupPopup(group: group),
+        ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  shape: CircleBorder(),
+                ),
+                onPressed: () {
+                  openGroupDeletePopup(context, group, companyId, boatId,
+                      tourId, firestoreDatabase);
+                },
+                child: Icon(Icons.delete,
+                    color: Theme.of(context).colorScheme.onPrimary),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  shape: CircleBorder(),
+                ),
+                onPressed: () {
+                  openGroupEditPopup(context, group, companyId, boatId, tourId,
+                      firestoreDatabase);
+                },
+                child: Icon(Icons.edit,
+                    color: Theme.of(context).colorScheme.onPrimary),
+              ),
+            ],
+          ),
+        ],
+      );
     },
   );
 }
@@ -1357,26 +1574,46 @@ class GroupPopup extends StatelessWidget {
   }
 }
 
-void openGroupDeletePopup(BuildContext context, GroupModel group) {
+void openGroupDeletePopup(
+    BuildContext context,
+    GroupModel group,
+    String companyId,
+    String boatId,
+    String tourId,
+    FirestoreDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return GroupDeletePopup(group: group);
+      return AlertDialog(
+        title: Text('Delete Group'),
+        content: Text(
+            'Are you sure you want to delete the group "${group.groupName}"?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close the dialog
+            },
+            child: Text('No'),
+          ),
+          TextButton(
+            onPressed: () {
+              // Call the delete group function here
+              deleteGroup(
+                  group.id, companyId, boatId, tourId, firestoreDatabase);
+              Navigator.of(context).pop(); // Close the current dialog
+              Navigator.of(context).pop(); // Close the previous dialog
+            },
+            child: Text('Yes'),
+          ),
+        ],
+      );
     },
   );
 }
 
-class GroupDeletePopup extends StatelessWidget {
-  final GroupModel group;
-
-  GroupDeletePopup({required this.group});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Text(group.groupName),
-    );
-  }
+void deleteGroup(String groupId, String companyId, String boatId, String tourId,
+    FirestoreDatabase firestoreDatabase) {
+  firestoreDatabase.deleteGroup(companyId, boatId, tourId, groupId);
 }
 
 //TODO Update the group of the tour (first filled-= adult count, price-= adult price*adult count + child price*child count, then filled += adult count, price += adult price*adult count + child price*child count)
