@@ -2,7 +2,7 @@ name: booksea_app
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -30,21 +30,22 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  provider: ^6.0.0  # Add this line with the latest version
-  cloud_firestore: ^5.6.2  # Add this line with the latest version
+  provider: ^6.0.0 # Add this line with the latest version
+  cloud_firestore: ^5.6.2 # Add this line with the latest version
   firebase_core: ^3.9.0
   # Add this line to include the flex_color_scheme package
-  flex_color_scheme: ^8.1.1  # Use the latest version or specify a version
+  flex_color_scheme: ^8.1.1 # Use the latest version or specify a version
   # Add this line to include the shared_preferences package
-  shared_preferences: ^2.0.15  # Use the latest version or specify a version
+  shared_preferences: ^2.0.15 # Use the latest version or specify a version
   # Add this line to include the firebase_auth package
-  firebase_auth: ^5.3.4  # Use the latest version or specify a version
+  firebase_auth: ^5.3.4 # Use the latest version or specify a version
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   google_sign_in: ^6.2.2
   easy_date_timeline: ^2.0.9
   intl_phone_field: ^3.2.0
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -63,7 +64,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -72,6 +72,11 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/Wave.png
+    - assets/home.png
+    - assets/welcome_splash.png
+    - assets/google_splash.png
+    - assets/settings.png
+    - assets/google.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -84,7 +89,16 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
-  # fonts:
+  fonts:
+    - family: Zain
+      fonts:
+        - asset: assets/google_fonts/Zain/Zain-Regular.ttf
+        - asset: assets/google_fonts/Zain/Zain-Bold.ttf
+
+    - family: Poppins
+      fonts:
+        - asset: assets/google_fonts/Poppins/Poppins-Regular.ttf
+        - asset: assets/google_fonts/Poppins/Poppins-Bold.ttf
   #   - family: Schyler
   #     fonts:
   #       - asset: fonts/Schyler-Regular.ttf

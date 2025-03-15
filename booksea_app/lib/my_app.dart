@@ -11,8 +11,9 @@ import 'package:booksea_app/ui/home/home.dart';
 import 'package:booksea_app/ui/home/no_code_home.dart';
 import 'package:booksea_app/ui/qr/qr_scanner_screen.dart';
 import 'package:booksea_app/ui/settings/settings_screen.dart';
+import 'package:booksea_app/ui/splash/splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';  
+import 'package:provider/provider.dart';
 import 'package:booksea_app/providers/theme_provider.dart';
 
 class MyApp extends StatefulWidget {
@@ -47,12 +48,13 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return Consumer2<ThemeProvider, AuthProvider>(
       builder: (_, themeProviderRef, authProviderRef, __) {
-        print('Current theme mode: ${themeProviderRef.isDarkModeOn ? "Dark" : "Light"}'); // Debug print
+        print(
+            'Current theme mode: ${themeProviderRef.isDarkModeOn ? "Dark" : "Light"}'); // Debug print
         return AuthWidgetBuilder(
           databaseBuilder: widget.databaseBuilder,
-          builder: (BuildContext context,
-              AsyncSnapshot<UserModel> userSnapshot) {
-            return MaterialApp( 
+          builder:
+              (BuildContext context, AsyncSnapshot<UserModel> userSnapshot) {
+            return MaterialApp(
               title: Provider.of<Flavor>(context).toString(),
               routes: Routes.routes,
               theme: AppTheme.light,
@@ -61,7 +63,7 @@ class _MyAppState extends State<MyApp> {
                   ? ThemeMode.dark
                   : ThemeMode.light,
               home: Builder(
-                builder: (context) { 
+                builder: (context) {
                   switch (authProviderRef.status) {
                     case Status.Authenticated:
                       return Scaffold(
@@ -90,11 +92,10 @@ class _MyAppState extends State<MyApp> {
                           ],
                           currentIndex: _selectedIndex,
                           onTap: _onItemTapped,
-                          
                         ),
                       );
                     case Status.Unauthenticated:
-                      return const GoogleLoginScreen();
+                      return const SplashScreen();
                     case Status.Uninitialized:
                       return const Material(
                         child: Center(child: CircularProgressIndicator()),
@@ -111,8 +112,8 @@ class _MyAppState extends State<MyApp> {
             );
           },
           key: const Key('AuthWidget'),
-        ); 
+        );
       },
     );
   }
-} 
+}

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:booksea_app/models/group_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:provider/provider.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
@@ -37,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Provider.of<FirestoreDatabase>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+      backgroundColor: Theme.of(context).colorScheme.onPrimary,
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(160),
         child: AppBar(
@@ -62,6 +61,14 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Stack(
         children: [
+          Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/home.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
           TourDataStream(
             companyId: authProvider.companyId!,
             boatId: boatId,
@@ -109,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? (MediaQuery.of(context).size.width / 2) - 28
                 : 15,
             child: FloatingActionButton(
+              heroTag: 'add_tour_fab',
               onPressed: () async {
                 final companyId = authProvider.companyId;
 
@@ -756,6 +764,7 @@ class TourCard extends StatelessWidget {
       onTap: () =>
           openTourPopup(context, tour, firestoreDatabase, companyId, boatId),
       child: Card(
+        color: Theme.of(context).colorScheme.onPrimary,
         margin:
             EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
         child: Padding(
@@ -1799,7 +1808,10 @@ void openGroupDeletePopup(
               Navigator.of(context).pop(); // Close the current dialog
               Navigator.of(context).pop(); // Close the previous dialog
             },
-            child: Text('Yes'),
+            child: Text(
+              'Yes',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       );

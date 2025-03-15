@@ -9,20 +9,19 @@ import 'package:flutter/material.dart';
 class Routes {
   Routes._();
 
-  static const String login = '/login'; 
+  static const String login = '/login';
   static const String splash = '/splash';
   static const String home = '/home';
   static const String settings = '/settings';
   static const String calendar = '/calendar';
   static const String qrScanner = '/qrScanner';
-  
+
   static final routes = <String, WidgetBuilder>{
     splash: (context) => const SplashScreen(),
-    home: (context) => const HomeScreen(),
     login: (context) => const GoogleLoginScreen(),
+    home: (context) => const HomeScreen(),
     settings: (context) => const SettingsScreen(),
     calendar: (context) => const CalendarScreen(),
     qrScanner: (context) => const QRScannerScreen(),
   };
 }
-
