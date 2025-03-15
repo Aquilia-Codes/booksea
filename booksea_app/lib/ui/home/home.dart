@@ -5,13 +5,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:intl_phone_field/phone_number.dart';
 import 'package:provider/provider.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
 import 'package:booksea_app/services/firestore_database.dart';
 import 'package:booksea_app/models/type_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
-import 'package:provider/single_child_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1813,7 +1811,3 @@ void deleteGroup(String groupId, String companyId, String boatId, String tourId,
     FirestoreDatabase firestoreDatabase) {
   firestoreDatabase.deleteGroup(companyId, boatId, tourId, groupId);
 }
-
-//TODO Update the group of the tour (first filled-= adult count, price-= adult price*adult count + child price*child count, then filled += adult count, price += adult price*adult count + child price*child count)
-
-//TODO Delete the group of the tour (filled -= adult count, price -= adult price*adult count + child price*child count)
