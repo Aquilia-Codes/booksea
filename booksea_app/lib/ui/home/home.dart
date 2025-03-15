@@ -969,94 +969,292 @@ class _TourPopupState extends State<TourPopup> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        child: Column(
-          children: [
-            Center(
-              child: Text(
-                widget.tour.tourName.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+      body: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  shape: CircleBorder(),
+                  fixedSize: Size(10, 10),
+                  backgroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                onPressed: () => openTourEditPopup(context, widget.companyId,
+                    widget.boatId, widget.tour, widget.firestoreDatabase),
+                child: Icon(Icons.edit,
                     color: Theme.of(context).colorScheme.primary),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
               ),
-            ),
-            Container(
-              margin: EdgeInsets.only(top: 10.0, bottom: 10.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                      '${widget.tour.startTime.toDate().hour}:${widget.tour.startTime.toDate().minute.toString().padLeft(2, '0')} - ${widget.tour.endTime.toDate().hour}:${widget.tour.endTime.toDate().minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary)),
-                  Text('${widget.tour.filled} / ${widget.tour.capacity}',
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary)),
-                ],
+              Container(
+                margin: EdgeInsets.only(top: 15.0),
+                child: Column(
+                  children: [
+                    Text(
+                        widget.tour.startTime.toDate().day ==
+                                    widget.tour.endTime.toDate().day &&
+                                widget.tour.startTime.toDate().month ==
+                                    widget.tour.endTime.toDate().month &&
+                                widget.tour.startTime.toDate().year ==
+                                    widget.tour.endTime.toDate().year
+                            ? '${widget.tour.startTime.toDate().hour}:${widget.tour.startTime.toDate().minute.toString().padLeft(2, '0')} - ${widget.tour.endTime.toDate().hour}:${widget.tour.endTime.toDate().minute.toString().padLeft(2, '0')}'
+                            : '${widget.tour.startTime.toDate().day}.${widget.tour.startTime.toDate().month}. - ${widget.tour.endTime.toDate().day}.${widget.tour.endTime.toDate().month}.',
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                    Text('${widget.tour.filled} / ${widget.tour.capacity}',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ],
+                ),
               ),
-            ),
-            SingleChildScrollView(
-              child: GroupDataStream(
-                companyId: widget.companyId,
-                boatId: widget.boatId,
-                tourId: widget.tour.id,
-                firestoreDatabase: widget.firestoreDatabase,
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  shape: CircleBorder(),
+                  backgroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                onPressed: () => openTourDeletePopup(context, widget.tour,
+                    widget.companyId, widget.boatId, widget.firestoreDatabase),
+                child: Icon(Icons.delete,
+                    color: Theme.of(context).colorScheme.error),
               ),
+            ],
+          ),
+          SingleChildScrollView(
+            child: GroupDataStream(
+              companyId: widget.companyId,
+              boatId: widget.boatId,
+              tourId: widget.tour.id,
+              firestoreDatabase: widget.firestoreDatabase,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-void openTourEditPopup(BuildContext context, TourModel tour) {
+void openTourEditPopup(BuildContext context, String companyId, String boatId,
+    TourModel tour, FirestoreDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return TourEditPopup(tour: tour);
+      return AlertDialog(
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: TourEditPopup(
+            tour: tour,
+            companyId: companyId,
+            boatId: boatId,
+            firestoreDatabase: firestoreDatabase,
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('Cancel'),
+          )
+        ],
+      );
     },
   );
 }
 
-class TourEditPopup extends StatelessWidget {
+class TourEditPopup extends StatefulWidget {
   final TourModel tour;
+  final String companyId;
+  final String boatId;
+  final FirestoreDatabase firestoreDatabase;
 
-  TourEditPopup({required this.tour});
+  TourEditPopup({
+    required this.tour,
+    required this.companyId,
+    required this.boatId,
+    required this.firestoreDatabase,
+  });
+
+  @override
+  _TourEditPopupState createState() => _TourEditPopupState();
+}
+
+class _TourEditPopupState extends State<TourEditPopup> {
+  late TextEditingController _tourNameController;
+  late TextEditingController _startTimeController;
+  late TextEditingController _endTimeController;
+  late TextEditingController _capacityController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tourNameController = TextEditingController(text: widget.tour.tourName);
+    _startTimeController =
+        TextEditingController(text: widget.tour.startTime.toDate().toString());
+    _endTimeController =
+        TextEditingController(text: widget.tour.endTime.toDate().toString());
+    _capacityController =
+        TextEditingController(text: widget.tour.capacity.toString());
+  }
+
+  void saveTour() {
+    final updatedTour = TourModel(
+      id: widget.tour.id,
+      tourName: _tourNameController.text,
+      startTime: Timestamp.fromDate(DateTime.parse(_startTimeController.text)),
+      endTime: Timestamp.fromDate(DateTime.parse(_endTimeController.text)),
+      capacity: int.parse(_capacityController.text),
+      filled: widget.tour.filled,
+      tourType: widget.tour.tourType,
+      note: widget.tour.note,
+    );
+    widget.firestoreDatabase.updateTour(
+        widget.companyId, widget.boatId, widget.tour.id, updatedTour);
+    Navigator.of(context).pop();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Text(tour.tourName),
+      body: Column(
+        children: [
+          TextField(
+            controller: _tourNameController,
+            decoration: InputDecoration(labelText: 'Tour Name'),
+          ),
+          TextField(
+            controller: _startTimeController,
+            decoration: InputDecoration(labelText: 'Start DateTime'),
+            keyboardType: TextInputType.datetime,
+          ),
+          TextField(
+            controller: _endTimeController,
+            decoration: InputDecoration(labelText: 'End DateTime'),
+            keyboardType: TextInputType.datetime,
+          ),
+          TextField(
+            controller: _capacityController,
+            decoration: InputDecoration(labelText: 'Capacity'),
+          ),
+          ElevatedButton(
+            onPressed: saveTour,
+            child: Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 }
 
-void openTourDeletePopup(BuildContext context, TourModel tour) {
+void openTourDeletePopup(BuildContext context, TourModel tour, String companyId,
+    String boatId, FirestoreDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return TourDeletePopup(tour: tour);
+      return AlertDialog(
+        content: TourDeletePopup(
+          tour: tour,
+          companyId: companyId,
+          boatId: boatId,
+          firestoreDatabase: firestoreDatabase,
+        ),
+      );
     },
   );
 }
 
-class TourDeletePopup extends StatelessWidget {
+class TourDeletePopup extends StatefulWidget {
   final TourModel tour;
+  final String companyId;
+  final String boatId;
+  final FirestoreDatabase firestoreDatabase;
 
-  TourDeletePopup({required this.tour});
+  TourDeletePopup(
+      {required this.tour,
+      required this.companyId,
+      required this.boatId,
+      required this.firestoreDatabase});
+
+  @override
+  _TourDeletePopupState createState() => _TourDeletePopupState();
+}
+
+class _TourDeletePopupState extends State<TourDeletePopup> {
+  final TextEditingController _tourNameController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Text(tour.tourName),
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.9,
+      height: 200,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              constraints: BoxConstraints(
+                minHeight: 75.0, // Set the minimal height here
+              ),
+              child: Text(
+                'For deleting the tour, please write the tour name:\n${widget.tour.tourName.toUpperCase()}',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+            Container(
+              margin: EdgeInsets.only(top: 10.0),
+              child: TextField(
+                controller: _tourNameController,
+                decoration: InputDecoration(labelText: 'Write the tour name'),
+              ),
+            ),
+            Container(
+              margin: EdgeInsets.only(top: 15.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_tourNameController.text.toUpperCase() ==
+                          widget.tour.tourName.toUpperCase()) {
+                        widget.firestoreDatabase.deleteTour(
+                            widget.companyId, widget.boatId, widget.tour.id);
+                        Navigator.of(context).pop<Object?>();
+                        Navigator.of(context).pop<Object?>();
+                      } else {
+                        // Optionally, show an error message or feedback to the user
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Tour name does not match. Please enter the correct name in uppercase.')),
+                        );
+                      }
+                    },
+                    child: Text(
+                      'Delete',
+                      style:
+                          TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
