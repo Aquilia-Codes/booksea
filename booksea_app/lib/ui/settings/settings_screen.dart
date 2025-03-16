@@ -1,6 +1,5 @@
 import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
-import 'package:booksea_app/services/firestore_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,8 +11,6 @@ class SettingsScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
     final authUser = authProvider.authUser;
-    final firestoreDatabase =
-        Provider.of<FirestoreDatabase>(context, listen: false);
 
     return Scaffold(
       body: Stack(
@@ -148,6 +145,7 @@ class SettingsScreen extends StatelessWidget {
                           style: TextStyle(
                               color: Theme.of(context).colorScheme.error))),
                   SizedBox(height: 10),
+                  //TODO add form which company theyre from
                 ],
               ),
             ),

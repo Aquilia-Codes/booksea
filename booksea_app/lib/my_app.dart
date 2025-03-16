@@ -5,7 +5,6 @@ import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
 import 'package:booksea_app/routes.dart';
 import 'package:booksea_app/services/firestore_database.dart';
-import 'package:booksea_app/ui/auth/google_login_screen.dart';
 import 'package:booksea_app/ui/calendar/calendar_screen.dart';
 import 'package:booksea_app/ui/home/home.dart';
 import 'package:booksea_app/ui/home/no_code_home.dart';
