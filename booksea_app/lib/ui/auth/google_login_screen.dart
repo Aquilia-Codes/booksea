@@ -2,8 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
-class GoogleLoginScreen extends StatelessWidget {
+class GoogleLoginScreen extends StatefulWidget {
   const GoogleLoginScreen({super.key});
+
+  @override
+  _GoogleLoginScreenState createState() => _GoogleLoginScreenState();
+}
+
+class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
+  bool isGoogleLogin = true;
 
   @override
   Widget build(BuildContext context) {
@@ -35,14 +42,32 @@ class GoogleLoginScreen extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                         content: Text(
-                            'Failed to sign in with Google: ${e.toString()}')),
+                            'Failed to sign in with ${isGoogleLogin ? 'Google' : 'Apple'}: ${e.toString()}')),
                   );
                 }
               },
               child: Image.asset(
-                'assets/google.png',
+                isGoogleLogin ? 'assets/google.png' : 'assets/apple.png',
                 width: 50,
                 height: 50,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    isGoogleLogin = !isGoogleLogin;
+                  });
+                },
+                child: Text(
+                  isGoogleLogin ? 'Apple login' : 'Google login',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
               ),
             ),
           ),

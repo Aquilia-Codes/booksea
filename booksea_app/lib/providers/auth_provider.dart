@@ -14,7 +14,7 @@ enum Status {
   Unauthenticated,
   Registering,
   NoCode
-} 
+}
 
 class AuthProvider extends ChangeNotifier {
   //Firebase Auth object
@@ -26,15 +26,19 @@ class AuthProvider extends ChangeNotifier {
 
   String? _companyId; // Add a private variable to store the company ID
 
-  List<String> _boatIds = []; // Declare and initialize _boatIds as a List<String>
+  List<String> _boatIds =
+      []; // Declare and initialize _boatIds as a List<String>
 
   String? get userId => _auth.currentUser?.uid;
 
   Status get status => _status;
 
-  List<String> get boatIds => _boatIds; // Ensure the getter returns List<String>
+  List<String> get boatIds =>
+      _boatIds; // Ensure the getter returns List<String>
 
   Stream<UserModel> get user => _auth.authStateChanges().map(_userFromFirebase);
+
+  User? get authUser => _auth.currentUser;
 
   AuthProvider() {
     //initialise object
@@ -47,7 +51,14 @@ class AuthProvider extends ChangeNotifier {
   //Create user object based on the given User
   UserModel _userFromFirebase(User? user) {
     if (user == null) {
-      return UserModel(uid: '', email: '', nickname: '', provision: 0, hasAccess: false, isAdmin: false, isOwner: false);
+      return UserModel(
+          uid: '',
+          email: '',
+          nickname: '',
+          provision: 0,
+          hasAccess: false,
+          isAdmin: false,
+          isOwner: false);
     }
 
     return UserModel(
@@ -75,7 +86,8 @@ class AuthProvider extends ChangeNotifier {
       if (docSnapshot.exists) {
         final userData = docSnapshot.data();
         _companyId = userData?['companyId'] ?? ''; // Set the company ID
-        _boatIds = List<String>.from(userData?['boatIds'] ?? []); // Set the boat IDs as List<String>
+        _boatIds = List<String>.from(
+            userData?['boatIds'] ?? []); // Set the boat IDs as List<String>
 
         // Add logging to check the fetched data
         print('Fetched companyId: $_companyId');
@@ -83,7 +95,8 @@ class AuthProvider extends ChangeNotifier {
 
         final firestoreDatabase = FirestoreDatabase(uid: firebaseUser.uid);
 
-        if (_companyId!.isEmpty || !await firestoreDatabase.companyExists(_companyId!)) {
+        if (_companyId!.isEmpty ||
+            !await firestoreDatabase.companyExists(_companyId!)) {
           _status = Status.NoCode;
         } else {
           _status = Status.Authenticated;
@@ -91,24 +104,24 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _status = Status.NoCode;
       }
-    } 
+    }
     notifyListeners();
-  } 
-  
+  }
+
   Future<dynamic> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
- 
 
-      final GoogleSignInAuthentication? googleAuth = await googleUser?.authentication;
- 
+      final GoogleSignInAuthentication? googleAuth =
+          await googleUser?.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth?.accessToken,
         idToken: googleAuth?.idToken,
-      ); 
+      );
 
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential); 
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
 
       User? user = userCredential.user;
       if (user != null) {
@@ -122,7 +135,8 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _createUserDocumentIfNotExists(String userId, UserModel userModel) async {
+  Future<void> _createUserDocumentIfNotExists(
+      String userId, UserModel userModel) async {
     final docRef = _firestore.collection('users').doc(userId);
     final docSnapshot = await docRef.get();
 
@@ -140,6 +154,5 @@ class AuthProvider extends ChangeNotifier {
     return Future.delayed(Duration.zero);
   }
 
-  String? get companyId => _companyId; // Getter to access the company ID 
+  String? get companyId => _companyId; // Getter to access the company ID
 }
- 
