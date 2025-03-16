@@ -9,6 +9,7 @@ import 'package:booksea_app/providers/auth_provider.dart';
 import 'package:booksea_app/services/firestore_database.dart';
 import 'package:booksea_app/models/type_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
+import 'package:booksea_app/ui/home/qr_image.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1497,7 +1498,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
             ],
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final group = GroupModel(
                 groupName: _groupNameController.text,
                 adultCount: int.tryParse(_adultCountController.text) ?? 0,
@@ -1511,8 +1512,32 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
               );
               if (widget.tour.filled + group.adultCount <=
                   widget.tour.capacity) {
-                widget.firestoreDatabase.createGroup(
-                    widget.companyId, widget.boatId, widget.tourId, group);
+                try {
+                  final groupId = await widget.firestoreDatabase.createGroup(
+                      widget.companyId, widget.boatId, widget.tourId, group);
+                  if (!context.mounted) return;
+                  // Close the add group dialog
+                  Navigator.of(context).pop();
+                  // Close the tour dialog
+                  Navigator.of(context).pop();
+                  // Navigate to QR image screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => QRImage(
+                        groupId,
+                        '${group.countryDialogCode}${group.mobileNumber}',
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to create group: ${e.toString()}'),
+                    ),
+                  );
+                }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -1520,7 +1545,6 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   ),
                 );
               }
-              Navigator.of(context).pop();
             },
             child: Text('Add Group'),
           ),

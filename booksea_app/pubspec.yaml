@@ -46,6 +46,8 @@ dependencies:
   easy_date_timeline: ^2.0.9
   intl_phone_field: ^3.2.0
   google_fonts: ^6.2.1
+  qr_flutter: ^4.1.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +80,9 @@ flutter:
     - assets/settings.png
     - assets/google.png
     - assets/apple.png
+    - assets/telegram.png
+    - assets/viber.png
+    - assets/whatsapp.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
