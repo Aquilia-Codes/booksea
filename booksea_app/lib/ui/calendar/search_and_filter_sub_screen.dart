@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-class CalendarSubScreen extends StatelessWidget {
+class SearchAndFilterSubScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Calendar'),
+        title: Text('Search and Filter'),
       ),
       body: Center(
         child: Text(
-          'Calendar',
+          'Search and Filter',
           style: TextStyle(fontSize: 24),
         ),
       ),

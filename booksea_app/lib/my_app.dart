@@ -6,6 +6,7 @@ import 'package:booksea_app/providers/auth_provider.dart';
 import 'package:booksea_app/routes.dart';
 import 'package:booksea_app/services/firestore_database.dart';
 import 'package:booksea_app/ui/calendar/calendar_screen.dart';
+import 'package:booksea_app/ui/calendar/search_and_filter.dart';
 import 'package:booksea_app/ui/home/home.dart';
 import 'package:booksea_app/ui/home/no_code_home.dart';
 import 'package:booksea_app/ui/qr/qr_scanner_screen.dart';
@@ -31,7 +32,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   int _selectedIndex = 1;
   final List<Widget> _screens = [
-    CalendarScreen(),
+    SearchAndFilterScreen(),
     HomeScreen(),
     QRScannerScreen(),
     SettingsScreen(),
@@ -73,8 +74,8 @@ class _MyAppState extends State<MyApp> {
                         bottomNavigationBar: BottomNavigationBar(
                           items: const <BottomNavigationBarItem>[
                             BottomNavigationBarItem(
-                              icon: Icon(Icons.calendar_month),
-                              label: 'Calendar',
+                              icon: Icon(Icons.search),
+                              label: 'Search',
                             ),
                             BottomNavigationBarItem(
                               icon: Icon(Icons.home),
