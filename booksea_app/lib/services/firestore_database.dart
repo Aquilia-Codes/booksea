@@ -280,6 +280,28 @@ class FirestoreDatabase {
             .toList());
   }
 
+  // update the hasArrived field of a group and the tour arrived field
+  Future<void> updateGroupHasArrived(String companyId, String boatId,
+      String tourId, bool hasArrived, GroupModel group) async {
+    final groupRef = FirebaseFirestore.instance
+        .collection(FirestorePath.groups(companyId, boatId, tourId))
+        .doc(group.id);
+    await groupRef.update({'hasArrived': hasArrived});
+
+    final tourRef = FirebaseFirestore.instance
+        .collection(FirestorePath.tours(companyId, boatId))
+        .doc(tourId);
+
+    final tourSnapshot = await tourRef.get();
+    if (tourSnapshot.exists) {
+      final tourData = tourSnapshot.data() as Map<String, dynamic>;
+      final currentArrived = tourData['arrived'] ?? 0;
+      final newArrived = currentArrived + group.adultCount;
+
+      await tourRef.update({'arrived': newArrived});
+    }
+  }
+
   /* Type section */
 
   // get tour types by companyId and boatId
@@ -305,6 +327,22 @@ class FirestoreDatabase {
       'tourTypes': tourTypes,
       'boatInfo': boatInfo,
     };
+  }
+
+  // get type info by typeName
+  Future<TypeModel> getTypeInfo(
+      String companyId, String boatId, String typeName) async {
+    final tourTypesSnapshot = await FirebaseFirestore.instance
+        .collection(FirestorePath.tourTypes(companyId, boatId))
+        .get();
+
+    if (tourTypesSnapshot.docs.isNotEmpty) {
+      final tourInfo = tourTypesSnapshot.docs
+          .firstWhere((doc) => doc.data()['typeName'] == typeName);
+
+      return TypeModel.fromMap(tourInfo.data(), tourInfo.id);
+    }
+    throw Exception('Tour type info not found');
   }
 
   /* Boat section */

@@ -10,6 +10,7 @@ import 'package:booksea_app/services/firestore_database.dart';
 import 'package:booksea_app/models/type_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
 import 'package:booksea_app/ui/home/qr_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -706,8 +707,9 @@ class TourDataStream extends StatelessWidget {
   final DateTime selectedDate;
   final FirestoreDatabase firestoreDatabase;
 
-  TourDataStream(
-      {required this.companyId,
+  const TourDataStream(
+      {super.key,
+      required this.companyId,
       required this.boatId,
       required this.selectedDate,
       required this.firestoreDatabase});
@@ -753,8 +755,9 @@ class TourCard extends StatelessWidget {
   final String companyId;
   final String boatId;
 
-  TourCard(
-      {required this.tour,
+  const TourCard(
+      {super.key,
+      required this.tour,
       required this.firestoreDatabase,
       required this.companyId,
       required this.boatId});
@@ -962,7 +965,8 @@ class TourPopup extends StatefulWidget {
   final String companyId;
   final String boatId;
 
-  TourPopup({
+  const TourPopup({
+    super.key,
     required this.tour,
     required this.firestoreDatabase,
     required this.companyId,
@@ -1079,7 +1083,8 @@ class TourEditPopup extends StatefulWidget {
   final String boatId;
   final FirestoreDatabase firestoreDatabase;
 
-  TourEditPopup({
+  const TourEditPopup({
+    super.key,
     required this.tour,
     required this.companyId,
     required this.boatId,
@@ -1127,29 +1132,156 @@ class _TourEditPopupState extends State<TourEditPopup> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          TextField(
-            controller: _tourNameController,
-            decoration: InputDecoration(labelText: 'Tour Name'),
+          SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.6,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextField(
+                    controller: _tourNameController,
+                    decoration: InputDecoration(labelText: 'Tour Name'),
+                  ),
+                  SizedBox(height: 20),
+                  SizedBox(
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Start',
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondaryContainer),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondaryContainer),
+                        ),
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                              '${widget.tour.startTime.toDate().day}.${widget.tour.startTime.toDate().month}.${widget.tour.startTime.toDate().year} at ${TimeOfDay.fromDateTime(widget.tour.startTime.toDate()).format(context)}'),
+                          trailing: Icon(Icons.keyboard_arrow_right),
+                          onTap: () async {
+                            DateTime? pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: widget.tour.startTime.toDate(),
+                              firstDate: DateTime(2024),
+                              lastDate: DateTime(2101),
+                            );
+                            if (pickedDate != null) {
+                              TimeOfDay? pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(
+                                    widget.tour.startTime.toDate()),
+                              );
+                              if (pickedTime != null) {
+                                setState(() {
+                                  _startTimeController.text = DateTime(
+                                    pickedDate.year,
+                                    pickedDate.month,
+                                    pickedDate.day,
+                                    pickedTime.hour,
+                                    pickedTime.minute,
+                                  ).toString();
+                                });
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  SizedBox(
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'End',
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondaryContainer),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondaryContainer),
+                        ),
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                              '${widget.tour.endTime.toDate().day}.${widget.tour.endTime.toDate().month}.${widget.tour.endTime.toDate().year} at ${TimeOfDay.fromDateTime(widget.tour.endTime.toDate()).format(context)}'),
+                          trailing: Icon(Icons.keyboard_arrow_right),
+                          onTap: () async {
+                            DateTime? pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: widget.tour.endTime.toDate(),
+                              firstDate: DateTime(2024),
+                              lastDate: DateTime(2101),
+                            );
+                            if (pickedDate != null) {
+                              TimeOfDay? pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(
+                                    widget.tour.endTime.toDate()),
+                              );
+                              if (pickedTime != null) {
+                                setState(() {
+                                  _endTimeController.text = DateTime(
+                                    pickedDate.year,
+                                    pickedDate.month,
+                                    pickedDate.day,
+                                    pickedTime.hour,
+                                    pickedTime.minute,
+                                  ).toString();
+                                });
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  TextField(
+                    controller: _capacityController,
+                    decoration: InputDecoration(labelText: 'Capacity'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  SizedBox(height: 20),
+                ],
+              ),
+            ),
           ),
-          TextField(
-            controller: _startTimeController,
-            decoration: InputDecoration(labelText: 'Start DateTime'),
-            keyboardType: TextInputType.datetime,
-          ),
-          TextField(
-            controller: _endTimeController,
-            decoration: InputDecoration(labelText: 'End DateTime'),
-            keyboardType: TextInputType.datetime,
-          ),
-          TextField(
-            controller: _capacityController,
-            decoration: InputDecoration(labelText: 'Capacity'),
-          ),
-          ElevatedButton(
-            onPressed: saveTour,
-            child: Text('Save'),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              margin: EdgeInsets.only(left: 40, right: 40),
+              child: ElevatedButton(
+                onPressed: saveTour,
+                child: Text('UPDATE TOUR',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary)),
+              ),
+            ),
           ),
         ],
       ),
@@ -1180,8 +1312,9 @@ class TourDeletePopup extends StatefulWidget {
   final String boatId;
   final FirestoreDatabase firestoreDatabase;
 
-  TourDeletePopup(
-      {required this.tour,
+  const TourDeletePopup(
+      {super.key,
+      required this.tour,
       required this.companyId,
       required this.boatId,
       required this.firestoreDatabase});
@@ -1197,7 +1330,7 @@ class _TourDeletePopupState extends State<TourDeletePopup> {
   Widget build(BuildContext context) {
     return Container(
       width: MediaQuery.of(context).size.width * 0.9,
-      height: 200,
+      height: 220,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1273,7 +1406,8 @@ class GroupDataStream extends StatelessWidget {
   final String tourId;
   final FirestoreDatabase firestoreDatabase;
 
-  GroupDataStream({
+  const GroupDataStream({
+    super.key,
     required this.companyId,
     required this.boatId,
     required this.tourId,
@@ -1303,7 +1437,6 @@ class GroupDataStream extends StatelessWidget {
               physics: NeverScrollableScrollPhysics(),
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                print(snapshot.data![index]);
                 return GroupCard(
                     group: snapshot.data![index],
                     companyId: companyId,
@@ -1326,7 +1459,8 @@ class GroupCard extends StatelessWidget {
   final String tourId;
   final FirestoreDatabase firestoreDatabase;
 
-  GroupCard({
+  const GroupCard({
+    super.key,
     required this.group,
     required this.companyId,
     required this.boatId,
@@ -1344,16 +1478,20 @@ class GroupCard extends StatelessWidget {
             EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
         child: Padding(
           padding: const EdgeInsets.only(
-              left: 20.0, right: 20.0, top: 15.0, bottom: 15.0),
+              left: 15.0, right: 15.0, top: 25.0, bottom: 25.0),
           child: Column(
             children: [
-              Text(group.groupName),
-              Text('${group.adultCount} adults'),
-              Text('${group.childCount} children'),
-              Text('${group.price.round()}€'),
-              Text(group.paymentStatus),
-              Text(group.bookerId),
-              Text('${group.countryDialogCode} ${group.mobileNumber}'),
+              Text(group.groupName.toUpperCase(),
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary)),
+              Text(
+                  '${group.paymentStatus.toUpperCase()}: ${group.price.round()}€',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary)),
             ],
           ),
         ),
@@ -1399,7 +1537,8 @@ class GroupAddPopup extends StatefulWidget {
   final String boatId;
   final FirestoreDatabase firestoreDatabase;
 
-  GroupAddPopup({
+  const GroupAddPopup({
+    super.key,
     required this.tourId,
     required this.tour,
     required this.companyId,
@@ -1437,116 +1576,203 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      child: Column(
+    return Scaffold(
+      body: Stack(
         children: [
-          TextField(
-            controller: _groupNameController,
-            decoration: InputDecoration(labelText: 'Group Name'),
-          ),
-          TextField(
-            controller: _adultCountController,
-            decoration: InputDecoration(labelText: 'Adult Count'),
-          ),
-          TextField(
-            controller: _childCountController,
-            decoration: InputDecoration(labelText: 'Child Count'),
-          ),
-          TextField(
-            controller: _priceController,
-            decoration: InputDecoration(labelText: 'Price'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _paymentStatusController.text.isNotEmpty
-                ? _paymentStatusController.text
-                : null,
-            items: ['Paid', 'Reserved', 'Cancelled'].map((String status) {
-              return DropdownMenuItem<String>(
-                value: status,
-                child: Text(status),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _paymentStatusController.text = newValue!;
-              });
-            },
-            decoration: InputDecoration(labelText: 'Payment Status'),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: IntlPhoneField(
-                  controller: _mobileNumberController,
-                  disableLengthCheck: true,
-                  decoration: InputDecoration(
-                    labelText: 'Mobile Number',
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(),
-                    ),
-                  ),
-                  initialCountryCode: 'US',
-                  onCountryChanged: (country) {
-                    setState(() {
-                      _countryCodeController.text = country.code;
-                      _countryDialogCodeController.text =
-                          '+${country.dialCode}';
-                    });
-                  },
-                ),
+          SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.6,
               ),
-            ],
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final group = GroupModel(
-                groupName: _groupNameController.text,
-                adultCount: int.tryParse(_adultCountController.text) ?? 0,
-                childCount: int.tryParse(_childCountController.text) ?? 0,
-                price: double.tryParse(_priceController.text) ?? 0.0,
-                paymentStatus: _paymentStatusController.text,
-                bookerId: '',
-                mobileNumber: _mobileNumberController.text,
-                countryCode: _countryCodeController.text,
-                countryDialogCode: _countryDialogCodeController.text,
-              );
-              if (widget.tour.filled + group.adultCount <=
-                  widget.tour.capacity) {
-                try {
-                  final groupId = await widget.firestoreDatabase.createGroup(
-                      widget.companyId, widget.boatId, widget.tourId, group);
-                  if (!context.mounted) return;
-                  // Close the add group dialog
-                  Navigator.of(context).pop();
-                  // Close the tour dialog
-                  Navigator.of(context).pop();
-                  // Navigate to QR image screen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => QRImage(
-                        groupId,
-                        '${group.countryDialogCode}${group.mobileNumber}',
-                      ),
-                    ),
-                  );
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to create group: ${e.toString()}'),
-                    ),
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Group capacity exceeds tour capacity'),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextField(
+                    controller: _groupNameController,
+                    decoration: InputDecoration(labelText: 'Group Name'),
                   ),
-                );
-              }
-            },
-            child: Text('Add Group'),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: _adultCountController,
+                    decoration: InputDecoration(labelText: 'Adult Count'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: _childCountController,
+                    decoration: InputDecoration(labelText: 'Child Count'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  SizedBox(height: 10),
+                  FutureBuilder(
+                    future: widget.firestoreDatabase.getTypeInfo(
+                        widget.companyId, widget.boatId, widget.tour.tourType),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        print(snapshot.data!.pricePerAdult);
+                        final typeInfo = snapshot.data as TypeModel;
+                        final pricePerAdult = typeInfo.pricePerAdult;
+                        final pricePerChild = typeInfo.pricePerChild;
+
+                        void updatePrice() {
+                          final adultCount =
+                              int.tryParse(_adultCountController.text) ?? 0;
+                          final childCount =
+                              int.tryParse(_childCountController.text) ?? 0;
+                          final totalPrice = (pricePerAdult * adultCount) +
+                              (pricePerChild * childCount);
+                          _priceController.text = totalPrice.toString();
+                        }
+
+                        _adultCountController.addListener(updatePrice);
+                        _childCountController.addListener(updatePrice);
+
+                        updatePrice();
+
+                        return TextField(
+                          controller: _priceController,
+                          decoration: InputDecoration(labelText: 'Price'),
+                          keyboardType: TextInputType.number,
+                        );
+                      }
+                      return Text('');
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _paymentStatusController.text.isNotEmpty
+                        ? _paymentStatusController.text
+                        : null,
+                    items:
+                        ['Paid', 'Reserved', 'Cancelled'].map((String status) {
+                      return DropdownMenuItem<String>(
+                        value: status,
+                        child: Text(status),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _paymentStatusController.text = newValue!;
+                      });
+                    },
+                    decoration: InputDecoration(labelText: 'Payment Status'),
+                  ),
+                  SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: IntlPhoneField(
+                          controller: _mobileNumberController,
+                          disableLengthCheck: true,
+                          decoration: InputDecoration(
+                            labelText: 'Mobile Number',
+                            labelStyle: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                              ),
+                            ),
+                            border: OutlineInputBorder(
+                              borderSide: BorderSide(),
+                            ),
+                          ),
+                          initialCountryCode: 'US',
+                          onCountryChanged: (country) {
+                            setState(() {
+                              _countryCodeController.text = country.code;
+                              _countryDialogCodeController.text =
+                                  '+${country.dialCode}';
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              margin: EdgeInsets.only(left: 40, right: 40),
+              child: ElevatedButton(
+                onPressed: () async {
+                  // Ensure default values if controllers are empty
+                  if (_countryCodeController.text.isEmpty) {
+                    _countryCodeController.text = 'US';
+                  }
+                  if (_countryDialogCodeController.text.isEmpty) {
+                    _countryDialogCodeController.text = '+1';
+                  }
+
+                  final group = GroupModel(
+                    groupName: _groupNameController.text,
+                    adultCount: int.tryParse(_adultCountController.text) ?? 0,
+                    childCount: int.tryParse(_childCountController.text) ?? 0,
+                    price: double.tryParse(_priceController.text) ?? 0.0,
+                    paymentStatus: _paymentStatusController.text,
+                    bookerId: '',
+                    mobileNumber: _mobileNumberController.text,
+                    countryCode: _countryCodeController.text,
+                    countryDialogCode: _countryDialogCodeController.text,
+                  );
+                  if (widget.tour.filled + group.adultCount <=
+                      widget.tour.capacity) {
+                    try {
+                      final groupId = await widget.firestoreDatabase
+                          .createGroup(widget.companyId, widget.boatId,
+                              widget.tourId, group);
+                      if (!context.mounted) return;
+                      // Close the add group dialog
+                      Navigator.of(context).pop();
+                      // Close the tour dialog
+                      Navigator.of(context).pop();
+                      // Navigate to QR image screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => QRImage(
+                            groupId,
+                            '${group.countryDialogCode}${group.mobileNumber}',
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content:
+                              Text('Failed to create group: ${e.toString()}'),
+                        ),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Group capacity exceeds tour capacity'),
+                      ),
+                    );
+                  }
+                },
+                child: Text('Add Group',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary)),
+              ),
+            ),
           ),
         ],
       ),
@@ -1596,7 +1822,8 @@ class GroupEditPopup extends StatefulWidget {
   final String tourId;
   final FirestoreDatabase firestoreDatabase;
 
-  GroupEditPopup({
+  const GroupEditPopup({
+    super.key,
     required this.group,
     required this.companyId,
     required this.boatId,
@@ -1653,91 +1880,137 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        child: Column(
-          children: [
-            TextField(
-              controller: _groupNameController,
-              decoration: InputDecoration(labelText: 'Group Name'),
-            ),
-            TextField(
-              controller: _adultCountController,
-              decoration: InputDecoration(labelText: 'Adult Count'),
-            ),
-            TextField(
-              controller: _childCountController,
-              decoration: InputDecoration(labelText: 'Child Count'),
-            ),
-            TextField(
-              controller: _priceController,
-              decoration: InputDecoration(labelText: 'Price'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _paymentStatusController.text.isNotEmpty
-                  ? _paymentStatusController.text
-                  : null,
-              items: ['Paid', 'Reserved', 'Cancelled'].map((String status) {
-                return DropdownMenuItem<String>(
-                  value: status,
-                  child: Text(status),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _paymentStatusController.text = newValue!;
-                });
-              },
-              decoration: InputDecoration(labelText: 'Payment Status'),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: IntlPhoneField(
-                    controller: _mobileNumberController,
-                    disableLengthCheck: true,
-                    decoration: InputDecoration(
-                      labelText: 'Mobile Number',
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(),
-                      ),
-                    ),
-                    initialCountryCode: widget.group.countryCode,
-                    onCountryChanged: (country) {
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.6,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextField(
+                    controller: _groupNameController,
+                    decoration: InputDecoration(labelText: 'Group Name'),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: _adultCountController,
+                    decoration: InputDecoration(labelText: 'Adult Count'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: _childCountController,
+                    decoration: InputDecoration(labelText: 'Child Count'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: _priceController,
+                    decoration: InputDecoration(labelText: 'Price'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _paymentStatusController.text.isNotEmpty
+                        ? _paymentStatusController.text
+                        : null,
+                    items:
+                        ['Paid', 'Reserved', 'Cancelled'].map((String status) {
+                      return DropdownMenuItem<String>(
+                        value: status,
+                        child: Text(status),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
                       setState(() {
-                        _countryCodeController.text = country.code;
-                        _countryDialogCodeController.text =
-                            '+${country.dialCode}';
+                        _paymentStatusController.text = newValue!;
                       });
                     },
+                    decoration: InputDecoration(labelText: 'Payment Status'),
                   ),
-                ),
-              ],
+                  SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: IntlPhoneField(
+                          controller: _mobileNumberController,
+                          disableLengthCheck: true,
+                          decoration: InputDecoration(
+                            labelText: 'Mobile Number',
+                            labelStyle: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                              ),
+                            ),
+                            border: OutlineInputBorder(
+                              borderSide: BorderSide(),
+                            ),
+                          ),
+                          initialCountryCode: widget.group.countryCode,
+                          onCountryChanged: (country) {
+                            setState(() {
+                              _countryCodeController.text = country.code;
+                              _countryDialogCodeController.text =
+                                  '+${country.dialCode}';
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                ],
+              ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                final updatedGroup = GroupModel(
-                  groupName: _groupNameController.text,
-                  adultCount: int.tryParse(_adultCountController.text) ?? 0,
-                  childCount: int.tryParse(_childCountController.text) ?? 0,
-                  price: double.tryParse(_priceController.text) ?? 0.0,
-                  paymentStatus: _paymentStatusController.text,
-                  bookerId: widget.group.bookerId,
-                  mobileNumber: _mobileNumberController.text,
-                  countryCode: _countryCodeController.text,
-                  countryDialogCode: _countryDialogCodeController.text,
-                );
-                widget.firestoreDatabase.updateGroup(
-                    widget.companyId,
-                    widget.boatId,
-                    widget.tourId,
-                    widget.group.id,
-                    updatedGroup);
-                Navigator.of(context).pop();
-              },
-              child: Text('Update Group'),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              margin: EdgeInsets.only(left: 40, right: 40),
+              child: ElevatedButton(
+                onPressed: () {
+                  final updatedGroup = GroupModel(
+                    groupName: _groupNameController.text,
+                    adultCount: int.tryParse(_adultCountController.text) ?? 0,
+                    childCount: int.tryParse(_childCountController.text) ?? 0,
+                    price: double.tryParse(_priceController.text) ?? 0.0,
+                    paymentStatus: _paymentStatusController.text,
+                    bookerId: widget.group.bookerId,
+                    mobileNumber: _mobileNumberController.text,
+                    countryCode: _countryCodeController.text,
+                    countryDialogCode: _countryDialogCodeController.text,
+                  );
+                  widget.firestoreDatabase.updateGroup(
+                      widget.companyId,
+                      widget.boatId,
+                      widget.tourId,
+                      widget.group.id,
+                      updatedGroup);
+                  Navigator.of(context).pop();
+                },
+                child: Text('UPDATE GROUP',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary)),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1751,7 +2024,7 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
       return AlertDialog(
         content: SizedBox(
           width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.6,
+          height: MediaQuery.of(context).size.height * 0.3,
           child: GroupPopup(group: group),
         ),
         actions: [
@@ -1793,12 +2066,60 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
 class GroupPopup extends StatelessWidget {
   final GroupModel group;
 
-  GroupPopup({required this.group});
+  const GroupPopup({super.key, required this.group});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Text(group.groupName),
+      body: Stack(
+        children: [
+          Center(
+            child: Column(
+              children: [
+                SizedBox(height: 20),
+                Text(group.groupName.toUpperCase(),
+                    style: TextStyle(
+                        fontSize: 35,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary)),
+                SizedBox(height: 20),
+                Text(
+                    '${group.paymentStatus.toUpperCase()}: ${group.price.round()}€',
+                    style: TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary)),
+                SizedBox(height: 25),
+                Text(
+                    '${group.adultCount} ${group.adultCount == 1 ? 'ADULT' : 'ADULTS'}',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary)),
+                Text(
+                    group.childCount > 0
+                        ? '${group.childCount} ${group.childCount == 1 ? 'CHILD' : 'CHILDREN'}'
+                        : '',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary)),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              margin: EdgeInsets.only(left: 40, right: 40),
+              child: CallButton(
+                phoneNumber: '${group.countryDialogCode}${group.mobileNumber}',
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1846,4 +2167,30 @@ void openGroupDeletePopup(
 void deleteGroup(String groupId, String companyId, String boatId, String tourId,
     FirestoreDatabase firestoreDatabase) {
   firestoreDatabase.deleteGroup(companyId, boatId, tourId, groupId);
+}
+
+class CallButton extends StatelessWidget {
+  final String phoneNumber;
+
+  const CallButton({super.key, required this.phoneNumber});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Color.fromRGBO(56, 176, 0, 1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(25),
+        ),
+      ),
+      onPressed: () {
+        launchUrl(Uri.parse('tel:$phoneNumber'));
+      },
+      child: Text('CALL $phoneNumber',
+          style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onPrimary)),
+    );
+  }
 }

@@ -9,6 +9,7 @@ class TourModel {
   final String tourType;
   final int capacity;
   final int filled;
+  final int arrived;
   final double price;
   final bool isBooked;
   final String note;
@@ -21,6 +22,7 @@ class TourModel {
     required this.tourType,
     required this.capacity,
     this.filled = 0, //this is the number of adult people in the tour
+    this.arrived = 0, //this is the number of adult people that have arrived
     this.price =
         0.0, //this is the all together price from all the groups together
     this.isBooked = false,
@@ -40,6 +42,7 @@ class TourModel {
       tourType: data['tourType'],
       capacity: data['capacity'],
       filled: data['filled'] ?? 0,
+      arrived: data['arrived'] ?? 0,
       price: data['price'] ?? 0.0,
       isBooked: data['isBooked'] ?? false,
       note: data['note'],
@@ -54,6 +57,7 @@ class TourModel {
       'tourType': tourType,
       'capacity': capacity,
       'filled': filled,
+      'arrived': arrived,
       'isBooked': isBooked,
       'note': note,
     };
