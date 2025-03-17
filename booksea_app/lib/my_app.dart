@@ -5,7 +5,6 @@ import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
 import 'package:booksea_app/routes.dart';
 import 'package:booksea_app/services/firestore_database.dart';
-import 'package:booksea_app/ui/calendar/calendar_screen.dart';
 import 'package:booksea_app/ui/calendar/search_and_filter.dart';
 import 'package:booksea_app/ui/home/home.dart';
 import 'package:booksea_app/ui/home/no_code_home.dart';
@@ -31,6 +30,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   int _selectedIndex = 1;
+  final PageController _pageController = PageController(initialPage: 1);
+
   final List<Widget> _screens = [
     SearchAndFilterScreen(),
     HomeScreen(),
@@ -42,6 +43,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _selectedIndex = index;
     });
+    _pageController.jumpToPage(index);
   }
 
   @override
@@ -67,9 +69,14 @@ class _MyAppState extends State<MyApp> {
                   switch (authProviderRef.status) {
                     case Status.Authenticated:
                       return Scaffold(
-                        body: IndexedStack(
-                          index: _selectedIndex,
+                        body: PageView(
+                          controller: _pageController,
                           children: _screens,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _selectedIndex = index;
+                            });
+                          },
                         ),
                         bottomNavigationBar: BottomNavigationBar(
                           items: const <BottomNavigationBarItem>[
