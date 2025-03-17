@@ -13,6 +13,7 @@ class TourModel {
   final double price;
   final bool isBooked;
   final String note;
+  String bookerId;
 
   TourModel({
     this.id = '',
@@ -27,6 +28,7 @@ class TourModel {
         0.0, //this is the all together price from all the groups together
     this.isBooked = false,
     required this.note,
+    this.bookerId = '',
   });
 
   factory TourModel.fromMap(Map<String, dynamic> data, String documentId) {
@@ -46,6 +48,7 @@ class TourModel {
       price: data['price'] ?? 0.0,
       isBooked: data['isBooked'] ?? false,
       note: data['note'],
+      bookerId: data['bookerId'],
     );
   }
 
@@ -60,6 +63,7 @@ class TourModel {
       'arrived': arrived,
       'isBooked': isBooked,
       'note': note,
+      'bookerId': bookerId,
     };
   }
 }

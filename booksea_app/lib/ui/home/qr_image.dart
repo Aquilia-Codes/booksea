@@ -5,7 +5,12 @@ import 'package:url_launcher/url_launcher.dart';
 class QRImage extends StatelessWidget {
   final String groupId;
   final String phoneNumber;
-  const QRImage(this.groupId, this.phoneNumber, {super.key});
+  final String companyId;
+  final String boatId;
+  final String tourId;
+  const QRImage(
+      this.groupId, this.phoneNumber, this.companyId, this.boatId, this.tourId,
+      {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +20,7 @@ class QRImage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             QrImageView(
-              data: groupId,
+              data: '$companyId/$boatId/$tourId/$groupId',
               size: 280,
               embeddedImageStyle: QrEmbeddedImageStyle(
                 size: const Size(

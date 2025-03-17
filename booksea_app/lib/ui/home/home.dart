@@ -410,7 +410,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                     future: _tourTypesAndBoatInfoFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Center(child: CircularProgressIndicator());
+                        return Center(child: Text(''));
                       } else if (snapshot.hasError) {
                         return Center(child: Text('Error: \${snapshot.error}'));
                       } else if (!snapshot.hasData ||
@@ -716,8 +716,8 @@ class TourDataStream extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<TourModel>>(
-      stream: firestoreDatabase.getToursStream(
+    return StreamBuilder<Map<String, dynamic>>(
+      stream: firestoreDatabase.getSumOfPriceStream(
           companyId,
           boatId,
           DateTime(
@@ -726,22 +726,66 @@ class TourDataStream extends StatelessWidget {
               59, 59)),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return Center(child: Text(''));
         } else if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        } else if (!snapshot.hasData) {
           return Center(child: Text('No tour data available'));
         } else {
-          return ListView.builder(
-            itemCount: snapshot.data!.length,
-            itemBuilder: (context, index) {
-              final tour = snapshot.data![index];
-              return TourCard(
-                  tour: tour,
-                  firestoreDatabase: firestoreDatabase,
-                  companyId: companyId,
-                  boatId: boatId);
-            },
+          final totalPrice = snapshot.data!['totalPrice'];
+          final totalProvision = snapshot.data!['totalProvision'];
+          return Column(
+            children: [
+              Container(
+                color: Theme.of(context).colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 2.0),
+                child: Column(
+                  children: [
+                    Text(
+                        'TOTAL: ${totalPrice.toStringAsFixed(0)}€ | PROVISION: ${totalProvision.toStringAsFixed(0)}€',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: StreamBuilder<List<TourModel>>(
+                  stream: firestoreDatabase.getToursStream(
+                      companyId,
+                      boatId,
+                      DateTime(selectedDate.year, selectedDate.month,
+                          selectedDate.day, 0, 0, 0),
+                      DateTime(selectedDate.year, selectedDate.month,
+                          selectedDate.day, 23, 59, 59)),
+                  builder: (context, tourSnapshot) {
+                    if (tourSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return Center(child: Text(''));
+                    } else if (tourSnapshot.hasError) {
+                      return Center(
+                          child: Text('Error: ${tourSnapshot.error}'));
+                    } else if (!tourSnapshot.hasData ||
+                        tourSnapshot.data!.isEmpty) {
+                      return Center(child: Text('No tour data available'));
+                    } else {
+                      return ListView.builder(
+                        itemCount: tourSnapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          final tour = tourSnapshot.data![index];
+                          return TourCard(
+                              tour: tour,
+                              firestoreDatabase: firestoreDatabase,
+                              companyId: companyId,
+                              boatId: boatId);
+                        },
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
           );
         }
       },
@@ -796,14 +840,38 @@ class TourCard extends StatelessWidget {
                                     .colorScheme
                                     .secondary))), // Centering text
                     Expanded(
-                        flex: 1,
-                        child: Text('${tour.filled} / ${tour.capacity}',
-                            textAlign: TextAlign.end,
-                            style: TextStyle(
+                      flex: 1,
+                      child: tour.arrived > 0
+                          ? Container(
+                              padding: EdgeInsets.symmetric(
+                                  vertical: 0, horizontal: 8.0),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                borderRadius: BorderRadius.circular(20.0),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${tour.arrived} / ${tour.filled}',
+                                  textAlign: TextAlign.end,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Text(
+                              '${tour.filled} / ${tour.capacity}',
+                              textAlign: TextAlign.end,
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color:
-                                    Theme.of(context).colorScheme.secondary))),
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ),
+                    ),
                   ],
                 ),
               ),
@@ -1746,6 +1814,9 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                           builder: (context) => QRImage(
                             groupId,
                             '${group.countryDialogCode}${group.mobileNumber}',
+                            widget.companyId,
+                            widget.boatId,
+                            widget.tourId,
                           ),
                         ),
                       );
@@ -1753,8 +1824,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content:
-                              Text('Failed to create group: ${e.toString()}'),
+                          content: Text('Failed to create group'),
                         ),
                       );
                     }
@@ -2025,7 +2095,12 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
         content: SizedBox(
           width: MediaQuery.of(context).size.width * 0.9,
           height: MediaQuery.of(context).size.height * 0.3,
-          child: GroupPopup(group: group),
+          child: GroupPopup(
+            group: group,
+            companyId: companyId,
+            boatId: boatId,
+            tourId: tourId,
+          ),
         ),
         actions: [
           Row(
@@ -2065,8 +2140,17 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
 
 class GroupPopup extends StatelessWidget {
   final GroupModel group;
+  final String companyId;
+  final String boatId;
+  final String tourId;
 
-  const GroupPopup({super.key, required this.group});
+  const GroupPopup({
+    super.key,
+    required this.group,
+    required this.companyId,
+    required this.boatId,
+    required this.tourId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2113,8 +2197,32 @@ class GroupPopup extends StatelessWidget {
             right: 0,
             child: Container(
               margin: EdgeInsets.only(left: 40, right: 40),
-              child: CallButton(
-                phoneNumber: '${group.countryDialogCode}${group.mobileNumber}',
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.qr_code),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => QRImage(
+                            group.id,
+                            '${group.countryDialogCode}${group.mobileNumber}',
+                            companyId,
+                            boatId,
+                            tourId,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 10),
+                  CallButton(
+                    phoneNumber:
+                        '${group.countryDialogCode}${group.mobileNumber}',
+                  ),
+                ],
               ),
             ),
           ),
@@ -2182,11 +2290,12 @@ class CallButton extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(25),
         ),
+        padding: EdgeInsets.symmetric(horizontal: 40),
       ),
       onPressed: () {
         launchUrl(Uri.parse('tel:$phoneNumber'));
       },
-      child: Text('CALL $phoneNumber',
+      child: Text('CALL',
           style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,

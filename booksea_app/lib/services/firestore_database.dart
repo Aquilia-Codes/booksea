@@ -96,6 +96,21 @@ class FirestoreDatabase {
         .toList();
   }
 
+  // Get sum of price of all tours by companyId and boatId in a specific date range and return a stream, also get the total provision of all the tours where bookerId is the same as the uid
+  Stream<Map<String, dynamic>> getSumOfPriceStream(String companyId,
+      String boatId, DateTime startTime, DateTime endTime) async* {
+    final tours = await getTours(companyId, boatId, startTime, endTime);
+    final totalPrice = tours.fold(0.0, (sum, tour) => sum + tour.price);
+    final user = await getUser();
+    final userTours = tours.where((tour) => tour.bookerId == user.uid).toList();
+    final totalProvision = userTours.fold(
+        0.0, (sum, tour) => sum + (tour.price * (user.provision / 100)));
+    yield {
+      'totalPrice': totalPrice,
+      'totalProvision': totalProvision,
+    };
+  }
+
   // Get all tours by companyId and boatId in a specific date range in a stream
   Stream<List<TourModel>> getToursStream(
       String companyId, String boatId, DateTime startTime, DateTime endTime) {
@@ -118,11 +133,12 @@ class FirestoreDatabase {
     // Extend the date range to one month before and after
     final startTime = tour.startTime.toDate().subtract(Duration(days: 30));
     final endTime = tour.endTime.toDate().add(Duration(days: 30));
+    final user = await getUser();
 
     final existingTours = await getTours(companyId, boatId, startTime, endTime);
     print('Existing tours: ${existingTours}');
     print('Tour: ${tour.startTime} to ${tour.endTime}');
-
+    print('User: ${user.uid}');
     for (var existingTour in existingTours) {
       if ((tour.startTime.compareTo(existingTour.startTime) >= 0 &&
               tour.startTime.compareTo(existingTour.endTime) < 0) ||
@@ -133,6 +149,8 @@ class FirestoreDatabase {
         throw Exception('A tour already exists in this time range.');
       }
     }
+
+    tour.bookerId = user.uid;
 
     final tourRef = FirebaseFirestore.instance
         .collection(FirestorePath.tours(companyId, boatId))
@@ -280,25 +298,41 @@ class FirestoreDatabase {
             .toList());
   }
 
+  // get a group by groupId
+  Future<GroupModel> getGroup(
+      String companyId, String boatId, String tourId, String groupId) async {
+    final groupRef = FirebaseFirestore.instance
+        .collection(FirestorePath.groups(companyId, boatId, tourId))
+        .doc(groupId);
+    final groupSnapshot = await groupRef.get();
+    if (groupSnapshot.exists) {
+      return GroupModel.fromMap(groupSnapshot.data()!, groupSnapshot.id);
+    }
+    throw Exception('Group not found');
+  }
+
   // update the hasArrived field of a group and the tour arrived field
   Future<void> updateGroupHasArrived(String companyId, String boatId,
       String tourId, bool hasArrived, GroupModel group) async {
     final groupRef = FirebaseFirestore.instance
         .collection(FirestorePath.groups(companyId, boatId, tourId))
         .doc(group.id);
+    final groupSnapshot = await groupRef.get();
+    final groupArrival = groupSnapshot.data()?['hasArrived'] ?? false;
     await groupRef.update({'hasArrived': hasArrived});
+    if (!groupArrival) {
+      final tourRef = FirebaseFirestore.instance
+          .collection(FirestorePath.tours(companyId, boatId))
+          .doc(tourId);
 
-    final tourRef = FirebaseFirestore.instance
-        .collection(FirestorePath.tours(companyId, boatId))
-        .doc(tourId);
+      final tourSnapshot = await tourRef.get();
+      if (tourSnapshot.exists) {
+        final tourData = tourSnapshot.data() as Map<String, dynamic>;
+        final currentArrived = tourData['arrived'] ?? 0;
+        final newArrived = currentArrived + group.adultCount;
 
-    final tourSnapshot = await tourRef.get();
-    if (tourSnapshot.exists) {
-      final tourData = tourSnapshot.data() as Map<String, dynamic>;
-      final currentArrived = tourData['arrived'] ?? 0;
-      final newArrived = currentArrived + group.adultCount;
-
-      await tourRef.update({'arrived': newArrived});
+        await tourRef.update({'arrived': newArrived});
+      }
     }
   }
 
@@ -352,5 +386,23 @@ class FirestoreDatabase {
         .collection(FirestorePath.boats(companyId))
         .doc(boat.name);
     await boatRef.set(boat.toMap());
+  }
+
+  /* Search section */
+
+  // search for a tour by boatId, tourType name, date range and capacity (where it needs to fit the capacity of the tour - filled )
+  Future<List<TourModel>> searchTours(
+      String companyId,
+      String boatId,
+      String tourType,
+      DateTime startTime,
+      DateTime endTime,
+      int capacity) async {
+    final tours = await getTours(companyId, boatId, startTime, endTime);
+    return tours
+        .where((tour) =>
+            tour.tourType == tourType &&
+            tour.capacity - tour.filled >= capacity)
+        .toList();
   }
 }
