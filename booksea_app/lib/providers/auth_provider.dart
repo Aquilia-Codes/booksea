@@ -36,7 +36,8 @@ class AuthProvider extends ChangeNotifier {
   List<String> get boatIds =>
       _boatIds; // Ensure the getter returns List<String>
 
-  Stream<UserModel> get user => _auth.authStateChanges().map(_userFromFirebase);
+  Stream<UserModel> get user =>
+      _auth.authStateChanges().asyncMap((user) => _userFromFirebase(user));
 
   User? get authUser => _auth.currentUser;
 
@@ -49,7 +50,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   //Create user object based on the given User
-  UserModel _userFromFirebase(User? user) {
+  Future<UserModel> _userFromFirebase(User? user) async {
     if (user == null) {
       return UserModel(
           uid: '',
@@ -58,17 +59,40 @@ class AuthProvider extends ChangeNotifier {
           provision: 0,
           hasAccess: false,
           isAdmin: false,
-          isOwner: false);
+          isOwner: false,
+          companyId: '',
+          boatIds: []);
     }
 
-    return UserModel(
+    final docRef = _firestore.collection('users').doc(user.uid);
+    final docSnapshot = await docRef.get();
+
+    if (docSnapshot.exists) {
+      final userData = docSnapshot.data()!;
+      return UserModel(
+        uid: user.uid,
+        hasAccess: userData['hasAccess'] ?? false,
+        isAdmin: userData['isAdmin'] ?? false,
+        isOwner: userData['isOwner'] ?? false,
+        email: user.email ?? '',
+        nickname: userData['nickname'] ?? user.displayName ?? '',
+        provision: userData['provision'] ?? 0,
+        companyId: userData['companyId'] ?? '',
+        boatIds: List<String>.from(userData['boatIds'] ?? []),
+      );
+    } else {
+      return UserModel(
         uid: user.uid,
         hasAccess: false,
         isAdmin: false,
         isOwner: false,
         email: user.email ?? '',
         nickname: user.displayName ?? '',
-        provision: 0);
+        provision: 0,
+        companyId: '',
+        boatIds: [],
+      );
+    }
   }
 
   //Method to detect live auth changes such as user sign in and sign out
@@ -76,7 +100,7 @@ class AuthProvider extends ChangeNotifier {
     if (firebaseUser == null) {
       _status = Status.Unauthenticated;
     } else {
-      UserModel userModel = _userFromFirebase(firebaseUser);
+      UserModel userModel = await _userFromFirebase(firebaseUser);
       await _createUserDocumentIfNotExists(firebaseUser.uid, userModel);
 
       // Check the company code

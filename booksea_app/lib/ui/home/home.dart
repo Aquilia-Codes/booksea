@@ -576,10 +576,36 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                               endTime ?? TimeOfDay.now(),
                                         );
                                         if (pickedTime != null) {
-                                          setState(() {
-                                            endDate = pickedDate;
-                                            endTime = pickedTime;
-                                          });
+                                          DateTime potentialEndDateTime =
+                                              DateTime(
+                                            pickedDate.year,
+                                            pickedDate.month,
+                                            pickedDate.day,
+                                            pickedTime.hour,
+                                            pickedTime.minute,
+                                          );
+                                          DateTime startDateTime = DateTime(
+                                            startDate.year,
+                                            startDate.month,
+                                            startDate.day,
+                                            startTime?.hour ?? 0,
+                                            startTime?.minute ?? 0,
+                                          );
+                                          if (potentialEndDateTime
+                                              .isAfter(startDateTime)) {
+                                            setState(() {
+                                              endDate = pickedDate;
+                                              endTime = pickedTime;
+                                            });
+                                          } else {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                    'End time must be after start time.'),
+                                              ),
+                                            );
+                                          }
                                         }
                                       }
                                     },
@@ -589,6 +615,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                             ),
                             const SizedBox(height: 10),
                             TextField(
+                              maxLength: 30,
                               decoration: InputDecoration(labelText: 'Notes'),
                               controller: _notesController,
                               onChanged: (value) {
@@ -774,11 +801,17 @@ class TourDataStream extends StatelessWidget {
                         itemCount: tourSnapshot.data!.length,
                         itemBuilder: (context, index) {
                           final tour = tourSnapshot.data![index];
-                          return TourCard(
-                              tour: tour,
-                              firestoreDatabase: firestoreDatabase,
-                              companyId: companyId,
-                              boatId: boatId);
+                          return Column(
+                            children: [
+                              TourCard(
+                                  tour: tour,
+                                  firestoreDatabase: firestoreDatabase,
+                                  companyId: companyId,
+                                  boatId: boatId),
+                              if (index == tourSnapshot.data!.length - 1)
+                                const SizedBox(height: 100),
+                            ],
+                          );
                         },
                       );
                     }
@@ -814,122 +847,136 @@ class TourCard extends StatelessWidget {
       child: Card(
         color: Theme.of(context).colorScheme.onPrimary,
         margin:
-            EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
-        child: Padding(
-          padding: const EdgeInsets.only(
-              left: 20.0, right: 20.0, top: 15.0, bottom: 15.0),
-          child: Column(
-            children: [
-              Container(
-                margin: EdgeInsets.only(bottom: 10.0),
-                height: 40, // Set a fixed height for the row
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment:
-                      CrossAxisAlignment.center, // Centering vertically
-                  children: [
-                    Expanded(
-                        flex: 2,
-                        child: Text(tour.tourName.toUpperCase(),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .secondary))), // Centering text
-                    Expanded(
-                      flex: 1,
-                      child: tour.arrived > 0
-                          ? Container(
-                              padding: EdgeInsets.symmetric(
-                                  vertical: 0, horizontal: 8.0),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                borderRadius: BorderRadius.circular(20.0),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '${tour.arrived} / ${tour.filled}',
-                                  textAlign: TextAlign.end,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
+            EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0, bottom: 0.0),
+        child: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image:
+                  AssetImage('assets/dolphins.png'), // Add a background image
+              fit: BoxFit.fitWidth,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.only(
+                left: 20.0, right: 20.0, top: 15.0, bottom: 15.0),
+            child: Column(
+              children: [
+                Container(
+                  margin: EdgeInsets.only(bottom: 10.0),
+                  height: 40, // Set a fixed height for the row
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.center, // Centering vertically
+                    children: [
+                      Expanded(
+                          flex: 2,
+                          child: Text(tour.tourName.toUpperCase(),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .secondary))), // Centering text
+                      Expanded(
+                        flex: 1,
+                        child: tour.arrived > 0
+                            ? Container(
+                                padding: EdgeInsets.symmetric(
+                                    vertical: 0, horizontal: 8.0),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(20.0),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${tour.arrived} / ${tour.filled}',
+                                    textAlign: TextAlign.end,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimary,
+                                    ),
                                   ),
                                 ),
+                              )
+                            : Text(
+                                '${tour.filled} / ${tour.capacity}',
+                                textAlign: TextAlign.end,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      Theme.of(context).colorScheme.secondary,
+                                ),
                               ),
-                            )
-                          : Text(
-                              '${tour.filled} / ${tour.capacity}',
-                              textAlign: TextAlign.end,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
-                            ),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                height: 30, // Set a fixed height for the row
-                child: Center(
+                Container(
+                  height: 30, // Set a fixed height for the row
+                  child: Center(
+                      child: Text(
+                          '${tour.startTime.toDate().hour}:${tour.startTime.toDate().minute.toString().padLeft(2, '0')} - ${tour.endTime.toDate().hour}:${tour.endTime.toDate().minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.secondary))),
+                ),
+                Container(
+                  margin: EdgeInsets.only(bottom: 10.0),
+                  height: 20, // Set a fixed height for the row
+                  child: Center(
                     child: Text(
-                        '${tour.startTime.toDate().hour}:${tour.startTime.toDate().minute.toString().padLeft(2, '0')} - ${tour.endTime.toDate().hour}:${tour.endTime.toDate().minute.toString().padLeft(2, '0')}',
+                        tour.startTime
+                                    .toDate()
+                                    .toLocal()
+                                    .toString()
+                                    .split(' ')[0] ==
+                                tour.endTime
+                                    .toDate()
+                                    .toLocal()
+                                    .toString()
+                                    .split(' ')[0]
+                            ? tour.startTime
+                                .toDate()
+                                .toLocal()
+                                .toString()
+                                .split(' ')[0]
+                            : '${tour.startTime.toDate().day}.${tour.startTime.toDate().month}.${tour.startTime.toDate().year}. - ${tour.endTime.toDate().day}.${tour.endTime.toDate().month}.${tour.endTime.toDate().year}.',
                         style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.secondary))),
-              ),
-              Container(
-                margin: EdgeInsets.only(bottom: 10.0),
-                height: 20, // Set a fixed height for the row
-                child: Center(
-                  child: Text(
-                      tour.startTime
-                                  .toDate()
-                                  .toLocal()
-                                  .toString()
-                                  .split(' ')[0] ==
-                              tour.endTime
-                                  .toDate()
-                                  .toLocal()
-                                  .toString()
-                                  .split(' ')[0]
-                          ? tour.startTime
-                              .toDate()
-                              .toLocal()
-                              .toString()
-                              .split(' ')[0]
-                          : '${tour.startTime.toDate().day}.${tour.startTime.toDate().month}.${tour.startTime.toDate().year}. - ${tour.endTime.toDate().day}.${tour.endTime.toDate().month}.${tour.endTime.toDate().year}.',
-                      style: TextStyle(
-                          fontSize: 16,
-                          color: Theme.of(context).colorScheme.secondary)),
+                            fontSize: 16,
+                            color: Theme.of(context).colorScheme.secondary)),
+                  ),
                 ),
-              ),
-              Container(
-                height: 40, // Set a fixed height for the row
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment:
-                      CrossAxisAlignment.center, // Centering vertically
-                  children: [
-                    Expanded(
-                        child: Text(tour.tourType.toUpperCase(),
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .secondary))), // Centering text
-                  ],
-                ),
-              )
-            ],
+                Container(
+                  height: 40, // Set a fixed height for the row
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.center, // Centering vertically
+                    children: [
+                      Expanded(
+                          child: Text(
+                              tour.note.isNotEmpty
+                                  ? '${tour.tourType.toUpperCase()}   -   ${tour.note}'
+                                  : tour.tourType.toUpperCase(),
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .secondary))), // Centering text
+                    ],
+                  ),
+                )
+              ],
+            ),
           ),
         ),
       ),
@@ -1106,7 +1153,7 @@ class _TourPopupState extends State<TourPopup> {
             child: GroupDataStream(
               companyId: widget.companyId,
               boatId: widget.boatId,
-              tourId: widget.tour.id,
+              tour: widget.tour,
               firestoreDatabase: widget.firestoreDatabase,
             ),
           ),
@@ -1168,7 +1215,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
   late TextEditingController _startTimeController;
   late TextEditingController _endTimeController;
   late TextEditingController _capacityController;
-
+  late TextEditingController _noteController;
   @override
   void initState() {
     super.initState();
@@ -1190,7 +1237,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
       capacity: int.parse(_capacityController.text),
       filled: widget.tour.filled,
       tourType: widget.tour.tourType,
-      note: widget.tour.note,
+      note: _noteController.text,
     );
     widget.firestoreDatabase.updateTour(
         widget.companyId, widget.boatId, widget.tour.id, updatedTour);
@@ -1329,6 +1376,12 @@ class _TourEditPopupState extends State<TourEditPopup> {
                     controller: _capacityController,
                     decoration: InputDecoration(labelText: 'Capacity'),
                     keyboardType: TextInputType.number,
+                  ),
+                  SizedBox(height: 20),
+                  TextField(
+                    controller: _noteController,
+                    decoration: InputDecoration(labelText: 'Note'),
+                    maxLength: 30,
                   ),
                   SizedBox(height: 20),
                 ],
@@ -1471,21 +1524,21 @@ class _TourDeletePopupState extends State<TourDeletePopup> {
 class GroupDataStream extends StatelessWidget {
   final String companyId;
   final String boatId;
-  final String tourId;
+  final TourModel tour;
   final FirestoreDatabase firestoreDatabase;
 
   const GroupDataStream({
     super.key,
     required this.companyId,
     required this.boatId,
-    required this.tourId,
+    required this.tour,
     required this.firestoreDatabase,
   });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<GroupModel>>(
-      stream: firestoreDatabase.getGroups(companyId, boatId, tourId),
+      stream: firestoreDatabase.getGroups(companyId, boatId, tour.id),
       builder: (context, snapshot) {
         print(snapshot.data);
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -1509,7 +1562,7 @@ class GroupDataStream extends StatelessWidget {
                     group: snapshot.data![index],
                     companyId: companyId,
                     boatId: boatId,
-                    tourId: tourId,
+                    tour: tour,
                     firestoreDatabase: firestoreDatabase);
               },
             ),
@@ -1524,7 +1577,7 @@ class GroupCard extends StatelessWidget {
   final GroupModel group;
   final String companyId;
   final String boatId;
-  final String tourId;
+  final TourModel tour;
   final FirestoreDatabase firestoreDatabase;
 
   const GroupCard({
@@ -1532,7 +1585,7 @@ class GroupCard extends StatelessWidget {
     required this.group,
     required this.companyId,
     required this.boatId,
-    required this.tourId,
+    required this.tour,
     required this.firestoreDatabase,
   });
 
@@ -1540,7 +1593,7 @@ class GroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => openGroupPopup(
-          context, group, companyId, boatId, tourId, firestoreDatabase),
+          context, group, companyId, boatId, tour, firestoreDatabase),
       child: Card(
         margin:
             EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
@@ -1709,9 +1762,8 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   DropdownButtonFormField<String>(
                     value: _paymentStatusController.text.isNotEmpty
                         ? _paymentStatusController.text
-                        : null,
-                    items:
-                        ['Paid', 'Reserved', 'Cancelled'].map((String status) {
+                        : 'Paid',
+                    items: ['Paid', 'Reserved'].map((String status) {
                       return DropdownMenuItem<String>(
                         value: status,
                         child: Text(status),
@@ -1751,6 +1803,9 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                             border: OutlineInputBorder(
                               borderSide: BorderSide(),
                             ),
+                            errorText: _mobileNumberController.text.isEmpty
+                                ? 'Mobile number cannot be empty'
+                                : null,
                           ),
                           initialCountryCode: 'US',
                           onCountryChanged: (country) {
@@ -1812,11 +1867,10 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => QRImage(
-                            groupId,
-                            '${group.countryDialogCode}${group.mobileNumber}',
+                            group,
                             widget.companyId,
                             widget.boatId,
-                            widget.tourId,
+                            widget.tour,
                           ),
                         ),
                       );
@@ -2087,7 +2141,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
 }
 
 void openGroupPopup(BuildContext context, GroupModel group, String companyId,
-    String boatId, String tourId, FirestoreDatabase firestoreDatabase) {
+    String boatId, TourModel tour, FirestoreDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -2099,7 +2153,7 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
             group: group,
             companyId: companyId,
             boatId: boatId,
-            tourId: tourId,
+            tour: tour,
           ),
         ),
         actions: [
@@ -2113,7 +2167,7 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
                 ),
                 onPressed: () {
                   openGroupDeletePopup(context, group, companyId, boatId,
-                      tourId, firestoreDatabase);
+                      tour.id, firestoreDatabase);
                 },
                 child: Icon(Icons.delete,
                     color: Theme.of(context).colorScheme.onPrimary),
@@ -2124,7 +2178,7 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
                   shape: CircleBorder(),
                 ),
                 onPressed: () {
-                  openGroupEditPopup(context, group, companyId, boatId, tourId,
+                  openGroupEditPopup(context, group, companyId, boatId, tour.id,
                       firestoreDatabase);
                 },
                 child: Icon(Icons.edit,
@@ -2142,14 +2196,14 @@ class GroupPopup extends StatelessWidget {
   final GroupModel group;
   final String companyId;
   final String boatId;
-  final String tourId;
+  final TourModel tour;
 
   const GroupPopup({
     super.key,
     required this.group,
     required this.companyId,
     required this.boatId,
-    required this.tourId,
+    required this.tour,
   });
 
   @override
@@ -2207,11 +2261,10 @@ class GroupPopup extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => QRImage(
-                            group.id,
-                            '${group.countryDialogCode}${group.mobileNumber}',
+                            group,
                             companyId,
                             boatId,
-                            tourId,
+                            tour,
                           ),
                         ),
                       );

@@ -49,6 +49,8 @@ dependencies:
   qr_flutter: ^4.1.0
   url_launcher: ^6.3.1
   mobile_scanner: ^6.0.7
+  screenshot: ^3.0.0
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:
@@ -84,6 +86,9 @@ flutter:
     - assets/telegram.png
     - assets/viber.png
     - assets/whatsapp.png
+    - assets/dolphins.png
+    - assets/private.png
+    - assets/qr.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

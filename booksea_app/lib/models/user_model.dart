@@ -3,19 +3,20 @@
 class UserModel {
   final String uid;
   final bool hasAccess;
-  final bool isAdmin; 
-  final bool isOwner; 
+  final bool isAdmin;
+  final bool isOwner;
   final String companyId;
   final String email;
   final String nickname;
   final int provision;
-  final List<dynamic> boatIds; //The ids of the boats that the user has access to
+  final List<dynamic>
+      boatIds; //The ids of the boats that the user has access to
 
   UserModel({
     required this.uid,
     required this.hasAccess,
     required this.isAdmin,
-    required this.isOwner, 
+    required this.isOwner,
     this.companyId = '',
     required this.email,
     required this.nickname,
@@ -46,7 +47,6 @@ class UserModel {
       boatIds: boatIds ?? this.boatIds,
     );
   }
-  
 
   factory UserModel.fromMap(Map<String, dynamic> data, String documentId) {
     final provision = data['provision'] ?? 0;
@@ -54,7 +54,7 @@ class UserModel {
       uid: data['uid'],
       hasAccess: data['hasAccess'],
       isAdmin: data['isAdmin'],
-      isOwner: data['isOwner'], 
+      isOwner: data['isOwner'],
       companyId: data['companyId'],
       email: data['email'],
       nickname: data['nickname'],
@@ -68,12 +68,12 @@ class UserModel {
       'uid': uid,
       'hasAccess': hasAccess,
       'isAdmin': isAdmin,
-      'isOwner': isOwner, 
+      'isOwner': isOwner,
       'companyId': companyId,
       'email': email,
       'nickname': nickname,
       'provision': provision,
-      'boatIds': boatIds, 
+      'boatIds': boatIds,
     };
   }
 }

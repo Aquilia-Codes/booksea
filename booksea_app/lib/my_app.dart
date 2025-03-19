@@ -30,7 +30,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   int _selectedIndex = 1;
-  final PageController _pageController = PageController(initialPage: 1);
 
   final List<Widget> _screens = [
     SearchAndFilterScreen(),
@@ -43,7 +42,6 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _selectedIndex = index;
     });
-    _pageController.jumpToPage(index);
   }
 
   @override
@@ -69,15 +67,7 @@ class _MyAppState extends State<MyApp> {
                   switch (authProviderRef.status) {
                     case Status.Authenticated:
                       return Scaffold(
-                        body: PageView(
-                          controller: _pageController,
-                          children: _screens,
-                          onPageChanged: (index) {
-                            setState(() {
-                              _selectedIndex = index;
-                            });
-                          },
-                        ),
+                        body: _screens[_selectedIndex],
                         bottomNavigationBar: BottomNavigationBar(
                           items: const <BottomNavigationBarItem>[
                             BottomNavigationBarItem(

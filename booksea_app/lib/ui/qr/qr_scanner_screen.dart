@@ -15,54 +15,67 @@ class QRScannerScreen extends StatelessWidget {
         Provider.of<FirestoreDatabase>(context, listen: false);
 
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 300, // Adjust the size as needed
-          height: 300, // Adjust the size as needed
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20), // Rounded corners
-            color: Colors.white, // Background color
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/private.png'), // Add a background image
+            fit: BoxFit.fitWidth,
           ),
-          child: ClipRRect(
-            borderRadius:
-                BorderRadius.circular(15), // Rounded corners for the scanner
-            child: MobileScanner(
-              controller: MobileScannerController(
-                facing: CameraFacing.back,
-                detectionSpeed:
-                    DetectionSpeed.noDuplicates, // Adjust detection speed
-              ),
-              onDetect: (barcodeCapture) {
-                final String code =
-                    barcodeCapture.barcodes.first.rawValue ?? '---';
-                final parts = code.split('/');
-                if (parts.length == 4) {
-                  final companyId = parts[0];
-                  final boatId = parts[1];
-                  final tourId = parts[2];
-                  final groupId = parts[3];
+        ),
+        child: Center(
+          child: Container(
+            width: 300, // Adjust the size as needed
+            height: 300, // Adjust the size as needed
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20), // Rounded corners
+              color: Colors.white, // Background color
+            ),
+            child: ClipRRect(
+              borderRadius:
+                  BorderRadius.circular(15), // Rounded corners for the scanner
+              child: MobileScanner(
+                controller: MobileScannerController(
+                  facing: CameraFacing.back,
+                  detectionSpeed:
+                      DetectionSpeed.noDuplicates, // Adjust detection speed
+                ),
+                onDetect: (barcodeCapture) {
+                  final String code =
+                      barcodeCapture.barcodes.first.rawValue ?? '---';
+                  final parts = code.split('/');
+                  if (parts.length == 4) {
+                    final companyId = parts[0];
+                    final boatId = parts[1];
+                    final tourId = parts[2];
+                    final groupId = parts[3];
+                    print(companyId);
+                    print(boatId);
+                    print(tourId);
+                    print(groupId);
+                    print(code);
 
-                  firestoreDatabase
-                      .getGroup(companyId, boatId, tourId, groupId)
-                      .then((group) {
-                    openGroupPopup(context, group, companyId, boatId, tourId,
-                        firestoreDatabase);
-                  }).catchError((error) {
+                    firestoreDatabase
+                        .getGroup(companyId, boatId, tourId, groupId)
+                        .then((group) {
+                      openGroupPopup(context, group, companyId, boatId, tourId,
+                          firestoreDatabase);
+                    }).catchError((error) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to fetch group'),
+                        ),
+                      );
+                    });
+                  } else {
+                    // Handle invalid QR code format
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to fetch group'),
+                        content: Text('Invalid QR code format'),
                       ),
                     );
-                  });
-                } else {
-                  // Handle invalid QR code format
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Invalid QR code format'),
-                    ),
-                  );
-                }
-              },
+                  }
+                },
+              ),
             ),
           ),
         ),
