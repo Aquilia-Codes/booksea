@@ -18,8 +18,9 @@ class QRScannerScreen extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/private.png'), // Add a background image
+            image: AssetImage('assets/qr.png'), // Add a background image
             fit: BoxFit.fitWidth,
+            alignment: Alignment.topCenter,
           ),
         ),
         child: Center(

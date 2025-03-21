@@ -7,6 +7,7 @@ class TourModel {
   final String
       tourName; //sets the tour name the same as the boat name + type name
   final String tourType;
+  final int typeImage;
   final int capacity;
   final int filled;
   final int arrived;
@@ -21,6 +22,7 @@ class TourModel {
     required this.endTime,
     required this.tourName,
     required this.tourType,
+    required this.typeImage,
     required this.capacity,
     this.filled = 0, //this is the number of adult people in the tour
     this.arrived = 0, //this is the number of adult people that have arrived
@@ -42,6 +44,7 @@ class TourModel {
           : Timestamp.fromDate(DateTime.parse(data['endTime'])),
       tourName: data['tourName'],
       tourType: data['tourType'],
+      typeImage: data['typeImage'],
       capacity: data['capacity'],
       filled: data['filled'] ?? 0,
       arrived: data['arrived'] ?? 0,
@@ -58,6 +61,7 @@ class TourModel {
       'endTime': endTime,
       'tourName': tourName,
       'tourType': tourType,
+      'typeImage': typeImage,
       'capacity': capacity,
       'filled': filled,
       'arrived': arrived,

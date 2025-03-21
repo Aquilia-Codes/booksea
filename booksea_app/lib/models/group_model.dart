@@ -9,6 +9,7 @@ class GroupModel {
   final String mobileNumber;
   final String countryCode;
   final String countryDialogCode;
+  final bool hasArrived;
 
   GroupModel({
     this.id = '',
@@ -21,6 +22,7 @@ class GroupModel {
     required this.mobileNumber,
     required this.countryCode,
     required this.countryDialogCode,
+    this.hasArrived = false,
   });
 
   factory GroupModel.fromMap(Map<String, dynamic> data, String documentId) {
@@ -35,6 +37,7 @@ class GroupModel {
       mobileNumber: data['mobileNumber'],
       countryCode: data['countryCode'],
       countryDialogCode: data['countryDialogCode'],
+      hasArrived: data['hasArrived'],
     );
   }
 
@@ -49,6 +52,7 @@ class GroupModel {
       'mobileNumber': mobileNumber,
       'countryCode': countryCode,
       'countryDialogCode': countryDialogCode,
+      'hasArrived': hasArrived,
     };
   }
 }

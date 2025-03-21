@@ -4,8 +4,17 @@ class SearchAndFilterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Text('Search and Filter'),
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/search.png'),
+            fit: BoxFit.fitWidth,
+            alignment: Alignment.topCenter,
+          ),
+        ),
+        child: Center(
+          child: Text('Search and Filter'),
+        ),
       ),
     );
   }

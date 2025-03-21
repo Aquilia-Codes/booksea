@@ -1,4 +1,4 @@
-//TODO remove all the circular progress indicators where they are not needed
+//TODO make all loads happen better
 import 'dart:async';
 import 'package:booksea_app/models/group_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -67,7 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/home.png'),
-                fit: BoxFit.cover,
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.bottomCenter,
               ),
             ),
           ),
@@ -657,6 +658,11 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                           Timestamp.fromDate(startDateTime),
                                       endTime: Timestamp.fromDate(endDateTime),
                                       note: _notesController.text,
+                                      typeImage: types
+                                          .firstWhere((type) =>
+                                              type.typeName ==
+                                              _selectedTourType!)
+                                          .typeImage,
                                     );
 
                                     try {
@@ -851,8 +857,8 @@ class TourCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image:
-                  AssetImage('assets/dolphins.png'), // Add a background image
+              image: AssetImage(
+                  'assets/${tour.typeImage}.png'), // Add a background image
               fit: BoxFit.fitWidth,
             ),
           ),
@@ -1237,6 +1243,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
       capacity: int.parse(_capacityController.text),
       filled: widget.tour.filled,
       tourType: widget.tour.tourType,
+      typeImage: widget.tour.typeImage,
       note: _noteController.text,
     );
     widget.firestoreDatabase.updateTour(
@@ -1591,10 +1598,17 @@ class GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardColor =
+        group.hasArrived ? Theme.of(context).colorScheme.primary : Colors.white;
+    final textColor = group.hasArrived
+        ? Theme.of(context).colorScheme.onPrimary
+        : Theme.of(context).colorScheme.primary;
+
     return GestureDetector(
       onTap: () => openGroupPopup(
           context, group, companyId, boatId, tour, firestoreDatabase),
       child: Card(
+        color: cardColor,
         margin:
             EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
         child: Padding(
@@ -1606,13 +1620,18 @@ class GroupCard extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary)),
+                      color: textColor)),
               Text(
                   '${group.paymentStatus.toUpperCase()}: ${group.price.round()}€',
                   style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary)),
+                      color: textColor)),
+              Text('Arrived: ${group.hasArrived ? 'Yes' : 'No'}',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: textColor)),
             ],
           ),
         ),
@@ -1854,9 +1873,6 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   if (widget.tour.filled + group.adultCount <=
                       widget.tour.capacity) {
                     try {
-                      final groupId = await widget.firestoreDatabase
-                          .createGroup(widget.companyId, widget.boatId,
-                              widget.tourId, group);
                       if (!context.mounted) return;
                       // Close the add group dialog
                       Navigator.of(context).pop();
