@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:booksea_app/models/group_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:provider/provider.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
@@ -349,7 +350,6 @@ class TourSelectionModal extends StatefulWidget {
   });
 
   @override
-  // ignore: library_private_types_in_public_api
   _TourSelectionModalState createState() => _TourSelectionModalState();
 }
 
@@ -364,6 +364,8 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
   final TextEditingController _notesController = TextEditingController();
   late DateTime startDate;
   late DateTime endDate;
+  bool _isButtonEnabled = true; // Ensure the button is enabled on load
+  List<TypeModel> types = [];
 
   @override
   void initState() {
@@ -374,21 +376,88 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
     _tourTypesAndBoatInfoFuture = widget.firestoreDatabase
         .getTourTypesAndBoatInfo(widget.companyId, widget.boatId);
     _tourTypesAndBoatInfoFuture.then((data) {
-      List<TypeModel> types = data['tourTypes'];
+      types = data['tourTypes'];
       if (types.isNotEmpty) {
         setState(() {
           _tourNameController.text =
               '${data['boatInfo'].name} ${types.first.typeName}';
           _selectedTourType = types.first.typeName;
           _capacityController.text = data['boatInfo'].capacity.toString();
-          if (startTime == null && endTime == null) {
-            // Ensure initialization happens only once
-            startTime = TimeOfDay.fromDateTime(types.first.startTime);
-            endTime = TimeOfDay.fromDateTime(types.first.endTime);
-          }
+          startTime = TimeOfDay.fromDateTime(types.first.startTime);
+          endTime = TimeOfDay.fromDateTime(types.first.endTime);
         });
       }
     });
+    _tourNameController.addListener(_updateButtonState);
+    _capacityController.addListener(_updateButtonState);
+    _notesController.addListener(_updateButtonState);
+  }
+
+  void _updateButtonState() {
+    setState(() {
+      _isButtonEnabled = _tourNameController.text.isNotEmpty &&
+          _capacityController.text.isNotEmpty &&
+          _selectedTourType != null &&
+          startTime != null &&
+          endTime != null;
+    });
+  }
+
+  void _validateAndSubmit() async {
+    if (_isButtonEnabled) {
+      final companyId = widget.companyId;
+      final firestoreDatabase = widget.firestoreDatabase;
+      final selectedDate = widget.selectedDate;
+      final boatId = widget.boatId;
+
+      final tour = TourModel(
+        tourName: _tourNameController.text,
+        tourType: _selectedTourType!,
+        capacity: int.tryParse(_capacityController.text) ?? 0,
+        startTime: Timestamp.fromDate(DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          startTime!.hour,
+          startTime!.minute,
+        )),
+        endTime: Timestamp.fromDate(DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          endTime!.hour,
+          endTime!.minute,
+        )),
+        note: _notesController.text,
+        typeImage: types
+            .firstWhere((type) => type.typeName == _selectedTourType!)
+            .typeImage,
+      );
+
+      try {
+        await firestoreDatabase.createTour(companyId, boatId, tour);
+        if (mounted) {
+          Navigator.of(context).pop(); // Close the modal
+        }
+      } catch (error) {
+        // Handle the error (e.g., show a snackbar or dialog)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('There was an error creating the tour. Please try again.'),
+          ),
+        );
+        if (mounted) {
+          Navigator.of(context).pop(); // Close the modal
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill all fields before creating a tour'),
+        ),
+      );
+    }
   }
 
   @override
@@ -413,7 +482,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return Center(child: Text(''));
                       } else if (snapshot.hasError) {
-                        return Center(child: Text('Error: \${snapshot.error}'));
+                        return Center(child: Text('Error: ${snapshot.error}'));
                       } else if (!snapshot.hasData ||
                           snapshot.data!['tourTypes'].isEmpty) {
                         return Center(child: Text('No tour types available'));
@@ -441,6 +510,10 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                   _capacityController.text = snapshot
                                       .data!['boatInfo'].capacity
                                       .toString();
+                                  startTime = TimeOfDay.fromDateTime(
+                                      selectedType.startTime);
+                                  endTime = TimeOfDay.fromDateTime(
+                                      selectedType.endTime);
                                 });
                               },
                               decoration: InputDecoration(
@@ -461,6 +534,8 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                             ),
                             const SizedBox(height: 10),
                             TextField(
+                              cursorColor:
+                                  Theme.of(context).colorScheme.primary,
                               decoration:
                                   InputDecoration(labelText: 'Tour Name'),
                               controller: _tourNameController,
@@ -473,9 +548,14 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                             const SizedBox(height: 10),
                             TextField(
                               controller: _capacityController,
+                              cursorColor:
+                                  Theme.of(context).colorScheme.primary,
                               decoration:
                                   InputDecoration(labelText: 'Capacity'),
                               keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
                               onChanged: (value) {
                                 setState(() {
                                   _capacityController.text = value;
@@ -617,6 +697,8 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                             const SizedBox(height: 10),
                             TextField(
                               maxLength: 30,
+                              cursorColor:
+                                  Theme.of(context).colorScheme.primary,
                               decoration: InputDecoration(labelText: 'Notes'),
                               controller: _notesController,
                               onChanged: (value) {
@@ -628,69 +710,9 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                             const SizedBox(height: 20),
                             Center(
                               child: ElevatedButton(
-                                onPressed: () async {
-                                  if (_selectedTourType != null &&
-                                      startTime != null &&
-                                      endTime != null) {
-                                    final startDateTime = DateTime(
-                                      startDate.year,
-                                      startDate.month,
-                                      startDate.day,
-                                      startTime!.hour,
-                                      startTime!.minute,
-                                    );
-
-                                    final endDateTime = DateTime(
-                                      endDate.year,
-                                      endDate.month,
-                                      endDate.day,
-                                      endTime!.hour,
-                                      endTime!.minute,
-                                    );
-
-                                    final tour = TourModel(
-                                      tourName: _tourNameController.text,
-                                      tourType: _selectedTourType!,
-                                      capacity: int.tryParse(
-                                              _capacityController.text) ??
-                                          0,
-                                      startTime:
-                                          Timestamp.fromDate(startDateTime),
-                                      endTime: Timestamp.fromDate(endDateTime),
-                                      note: _notesController.text,
-                                      typeImage: types
-                                          .firstWhere((type) =>
-                                              type.typeName ==
-                                              _selectedTourType!)
-                                          .typeImage,
-                                    );
-
-                                    try {
-                                      await widget.firestoreDatabase.createTour(
-                                        widget.companyId,
-                                        widget.boatId,
-                                        tour,
-                                      );
-
-                                      if (mounted) {
-                                        Navigator.of(context)
-                                            .pop(); // Close the modal
-                                      }
-                                    } catch (error) {
-                                      // Handle the error (e.g., show a snackbar or dialog)
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                'There was an error creating the tour. Please try again.')),
-                                      );
-                                      if (mounted) {
-                                        Navigator.of(context)
-                                            .pop(); // Close the modal
-                                      }
-                                    }
-                                  }
-                                },
+                                onPressed: _isButtonEnabled
+                                    ? _validateAndSubmit
+                                    : null,
                                 child: Text('Create Tour'),
                               ),
                             ),
@@ -856,11 +878,13 @@ class TourCard extends StatelessWidget {
             EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0, bottom: 0.0),
         child: Container(
           decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(
-                  'assets/${tour.typeImage}.png'), // Add a background image
-              fit: BoxFit.fitWidth,
-            ),
+            image: tour.typeImage != 0
+                ? DecorationImage(
+                    image: AssetImage('assets/${tour.typeImage}.png'),
+                    fit: BoxFit.fitWidth,
+                    alignment: Alignment.bottomRight,
+                  )
+                : null,
           ),
           child: Padding(
             padding: const EdgeInsets.only(
@@ -1106,6 +1130,7 @@ class _TourPopupState extends State<TourPopup> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -1119,9 +1144,20 @@ class _TourPopupState extends State<TourPopup> {
                     color: Theme.of(context).colorScheme.primary),
               ),
               Container(
+                width: MediaQuery.of(context).size.width * 0.4,
                 margin: EdgeInsets.only(top: 15.0),
                 child: Column(
                   children: [
+                    Text(
+                      widget.tour.tourName.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     Text(
                         widget.tour.startTime.toDate().day ==
                                     widget.tour.endTime.toDate().day &&
@@ -1185,14 +1221,6 @@ void openTourEditPopup(BuildContext context, String companyId, String boatId,
             firestoreDatabase: firestoreDatabase,
           ),
         ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('Cancel'),
-          )
-        ],
       );
     },
   );
@@ -1222,6 +1250,8 @@ class _TourEditPopupState extends State<TourEditPopup> {
   late TextEditingController _endTimeController;
   late TextEditingController _capacityController;
   late TextEditingController _noteController;
+  bool _isButtonEnabled = false;
+
   @override
   void initState() {
     super.initState();
@@ -1232,23 +1262,47 @@ class _TourEditPopupState extends State<TourEditPopup> {
         TextEditingController(text: widget.tour.endTime.toDate().toString());
     _capacityController =
         TextEditingController(text: widget.tour.capacity.toString());
+    _noteController = TextEditingController(text: widget.tour.note);
+    _tourNameController.addListener(_updateButtonState);
+    _startTimeController.addListener(_updateButtonState);
+    _endTimeController.addListener(_updateButtonState);
+    _capacityController.addListener(_updateButtonState);
+    _noteController.addListener(_updateButtonState);
+  }
+
+  void _updateButtonState() {
+    setState(() {
+      _isButtonEnabled = _tourNameController.text.isNotEmpty &&
+          _startTimeController.text.isNotEmpty &&
+          _endTimeController.text.isNotEmpty &&
+          _capacityController.text.isNotEmpty;
+    });
   }
 
   void saveTour() {
-    final updatedTour = TourModel(
-      id: widget.tour.id,
-      tourName: _tourNameController.text,
-      startTime: Timestamp.fromDate(DateTime.parse(_startTimeController.text)),
-      endTime: Timestamp.fromDate(DateTime.parse(_endTimeController.text)),
-      capacity: int.parse(_capacityController.text),
-      filled: widget.tour.filled,
-      tourType: widget.tour.tourType,
-      typeImage: widget.tour.typeImage,
-      note: _noteController.text,
-    );
-    widget.firestoreDatabase.updateTour(
-        widget.companyId, widget.boatId, widget.tour.id, updatedTour);
-    Navigator.of(context).pop();
+    if (_isButtonEnabled) {
+      final updatedTour = TourModel(
+        id: widget.tour.id,
+        tourName: _tourNameController.text,
+        startTime:
+            Timestamp.fromDate(DateTime.parse(_startTimeController.text)),
+        endTime: Timestamp.fromDate(DateTime.parse(_endTimeController.text)),
+        capacity: int.parse(_capacityController.text),
+        filled: widget.tour.filled,
+        tourType: widget.tour.tourType,
+        typeImage: widget.tour.typeImage,
+        note: _noteController.text,
+      );
+      widget.firestoreDatabase.updateTour(
+          widget.companyId, widget.boatId, widget.tour.id, updatedTour);
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill all fields before updating the tour'),
+        ),
+      );
+    }
   }
 
   @override
@@ -1267,6 +1321,15 @@ class _TourEditPopupState extends State<TourEditPopup> {
                   TextField(
                     controller: _tourNameController,
                     decoration: InputDecoration(labelText: 'Tour Name'),
+                    cursorColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  SizedBox(height: 20),
+                  TextField(
+                    controller: _capacityController,
+                    decoration: InputDecoration(labelText: 'Capacity'),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    cursorColor: Theme.of(context).colorScheme.primary,
                   ),
                   SizedBox(height: 20),
                   SizedBox(
@@ -1380,15 +1443,10 @@ class _TourEditPopupState extends State<TourEditPopup> {
                   ),
                   SizedBox(height: 20),
                   TextField(
-                    controller: _capacityController,
-                    decoration: InputDecoration(labelText: 'Capacity'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  SizedBox(height: 20),
-                  TextField(
                     controller: _noteController,
                     decoration: InputDecoration(labelText: 'Note'),
                     maxLength: 30,
+                    cursorColor: Theme.of(context).colorScheme.primary,
                   ),
                   SizedBox(height: 20),
                 ],
@@ -1400,14 +1458,36 @@ class _TourEditPopupState extends State<TourEditPopup> {
             left: 0,
             right: 0,
             child: Container(
-              margin: EdgeInsets.only(left: 40, right: 40),
-              child: ElevatedButton(
-                onPressed: saveTour,
-                child: Text('UPDATE TOUR',
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary)),
+              padding: EdgeInsets.only(left: 10, right: 10, top: 10),
+              color: Colors.white, // Set background to white
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Cancel action
+                    },
+                    child: Text('Cancel',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isButtonEnabled
+                        ? () {
+                            saveTour();
+                            Navigator.of(context)
+                                .pop(); // Push navigator after saving
+                          }
+                        : null,
+                    child: Text('UPDATE TOUR',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1558,7 +1638,7 @@ class GroupDataStream extends StatelessWidget {
           );
         }
         return Container(
-          height: MediaQuery.of(context).size.height * 0.6 - 75,
+          height: MediaQuery.of(context).size.height * 0.6 - 94,
           child: SingleChildScrollView(
             child: ListView.builder(
               shrinkWrap: true,
@@ -1657,14 +1737,6 @@ void openGroupAddPopup(BuildContext context, String tourId, String companyId,
             firestoreDatabase: firestoreDatabase,
           ),
         ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('Cancel'),
-          ),
-        ],
       );
     },
   );
@@ -1696,22 +1768,110 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   final TextEditingController _childCountController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _paymentStatusController =
-      TextEditingController();
+      TextEditingController(text: 'Paid');
   final TextEditingController _mobileNumberController = TextEditingController();
   final TextEditingController _countryCodeController = TextEditingController();
   final TextEditingController _countryDialogCodeController =
       TextEditingController();
+  bool _isButtonEnabled = false;
+  bool _isPriceManuallyEdited = false;
+
   @override
-  void dispose() {
-    _groupNameController.dispose();
-    _adultCountController.dispose();
-    _childCountController.dispose();
-    _priceController.dispose();
-    _paymentStatusController.dispose();
-    _mobileNumberController.dispose();
-    _countryCodeController.dispose();
-    _countryDialogCodeController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _groupNameController.addListener(_updateButtonState);
+    _adultCountController.addListener(() {
+      _updateButtonState();
+      _isPriceManuallyEdited = false;
+    });
+    _childCountController.addListener(() {
+      _updateButtonState();
+      _isPriceManuallyEdited = false;
+    });
+    _priceController.addListener(_updateButtonState);
+    _mobileNumberController.addListener(_updateButtonState);
+  }
+
+  void _updateButtonState() {
+    setState(() {
+      _isButtonEnabled = _groupNameController.text.isNotEmpty &&
+          _adultCountController.text.isNotEmpty &&
+          _childCountController.text.isNotEmpty &&
+          _priceController.text.isNotEmpty &&
+          _mobileNumberController.text.isNotEmpty;
+    });
+  }
+
+  void _validateAndSubmit() async {
+    if (_isButtonEnabled) {
+      // Ensure default values if controllers are empty
+      if (_countryCodeController.text.isEmpty) {
+        _countryCodeController.text = 'US';
+      }
+      if (_countryDialogCodeController.text.isEmpty) {
+        _countryDialogCodeController.text = '+1';
+      }
+
+      final group = GroupModel(
+        groupName: _groupNameController.text,
+        adultCount: int.tryParse(_adultCountController.text) ?? 0,
+        childCount: int.tryParse(_childCountController.text) ?? 0,
+        price: double.tryParse(_priceController.text) ?? 0.0,
+        paymentStatus: _paymentStatusController.text,
+        bookerId: '',
+        mobileNumber: _mobileNumberController.text,
+        countryCode: _countryCodeController.text,
+        countryDialogCode: _countryDialogCodeController.text,
+      );
+      if (widget.tour.filled + group.adultCount <= widget.tour.capacity) {
+        try {
+          // Add the group to the database
+          await widget.firestoreDatabase.createGroup(
+            widget.companyId,
+            widget.boatId,
+            widget.tour.id,
+            group,
+          );
+
+          if (!context.mounted) return;
+          // Close the add group dialog
+          Navigator.of(context).pop();
+          // Close the tour dialog
+          Navigator.of(context).pop();
+          // Navigate to QR image screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => QRImage(
+                group,
+                widget.companyId,
+                widget.boatId,
+                widget.tour,
+              ),
+            ),
+          );
+        } catch (e) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to create group'),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Group capacity exceeds tour capacity'),
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill all fields before adding a group'),
+        ),
+      );
+    }
   }
 
   @override
@@ -1729,18 +1889,32 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                 children: [
                   TextField(
                     controller: _groupNameController,
-                    decoration: InputDecoration(labelText: 'Group Name'),
+                    cursorColor: Theme.of(context).colorScheme.primary,
+                    decoration: InputDecoration(
+                      labelText: 'Group Name',
+                    ),
+                    maxLength: 20,
                   ),
                   SizedBox(height: 10),
                   TextField(
                     controller: _adultCountController,
-                    decoration: InputDecoration(labelText: 'Adult Count'),
+                    cursorColor: Theme.of(context).colorScheme.primary,
+                    decoration: InputDecoration(
+                      labelText: 'Adult Count',
+                    ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 2,
                   ),
                   TextField(
                     controller: _childCountController,
-                    decoration: InputDecoration(labelText: 'Child Count'),
+                    cursorColor: Theme.of(context).colorScheme.primary,
+                    decoration: InputDecoration(
+                      labelText: 'Child Count',
+                    ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 2,
                   ),
                   SizedBox(height: 10),
                   FutureBuilder(
@@ -1748,19 +1922,22 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                         widget.companyId, widget.boatId, widget.tour.tourType),
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
-                        print(snapshot.data!.pricePerAdult);
                         final typeInfo = snapshot.data as TypeModel;
                         final pricePerAdult = typeInfo.pricePerAdult;
                         final pricePerChild = typeInfo.pricePerChild;
 
                         void updatePrice() {
-                          final adultCount =
-                              int.tryParse(_adultCountController.text) ?? 0;
-                          final childCount =
-                              int.tryParse(_childCountController.text) ?? 0;
-                          final totalPrice = (pricePerAdult * adultCount) +
-                              (pricePerChild * childCount);
-                          _priceController.text = totalPrice.toString();
+                          if (!_isPriceManuallyEdited) {
+                            final adultCount =
+                                int.tryParse(_adultCountController.text) ?? 0;
+                            final childCount =
+                                int.tryParse(_childCountController.text) ?? 0;
+                            final totalPrice = (pricePerAdult * adultCount) +
+                                (pricePerChild * childCount);
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _priceController.text = totalPrice.toString();
+                            });
+                          }
                         }
 
                         _adultCountController.addListener(updatePrice);
@@ -1770,8 +1947,16 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
 
                         return TextField(
                           controller: _priceController,
-                          decoration: InputDecoration(labelText: 'Price'),
+                          decoration: InputDecoration(
+                            labelText: 'Price',
+                          ),
+                          cursorColor: Theme.of(context).colorScheme.primary,
                           keyboardType: TextInputType.number,
+                          onTap: () {
+                            setState(() {
+                              _isPriceManuallyEdited = true;
+                            });
+                          },
                         );
                       }
                       return Text('');
@@ -1779,9 +1964,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   ),
                   SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _paymentStatusController.text.isNotEmpty
-                        ? _paymentStatusController.text
-                        : 'Paid',
+                    value: _paymentStatusController.text,
                     items: ['Paid', 'Reserved'].map((String status) {
                       return DropdownMenuItem<String>(
                         value: status,
@@ -1793,7 +1976,9 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                         _paymentStatusController.text = newValue!;
                       });
                     },
-                    decoration: InputDecoration(labelText: 'Payment Status'),
+                    decoration: InputDecoration(
+                      labelText: 'Payment Status',
+                    ),
                   ),
                   SizedBox(height: 20),
                   Row(
@@ -1822,9 +2007,6 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                             border: OutlineInputBorder(
                               borderSide: BorderSide(),
                             ),
-                            errorText: _mobileNumberController.text.isEmpty
-                                ? 'Mobile number cannot be empty'
-                                : null,
                           ),
                           initialCountryCode: 'US',
                           onCountryChanged: (country) {
@@ -1848,69 +2030,30 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
             left: 0,
             right: 0,
             child: Container(
-              margin: EdgeInsets.only(left: 40, right: 40),
-              child: ElevatedButton(
-                onPressed: () async {
-                  // Ensure default values if controllers are empty
-                  if (_countryCodeController.text.isEmpty) {
-                    _countryCodeController.text = 'US';
-                  }
-                  if (_countryDialogCodeController.text.isEmpty) {
-                    _countryDialogCodeController.text = '+1';
-                  }
-
-                  final group = GroupModel(
-                    groupName: _groupNameController.text,
-                    adultCount: int.tryParse(_adultCountController.text) ?? 0,
-                    childCount: int.tryParse(_childCountController.text) ?? 0,
-                    price: double.tryParse(_priceController.text) ?? 0.0,
-                    paymentStatus: _paymentStatusController.text,
-                    bookerId: '',
-                    mobileNumber: _mobileNumberController.text,
-                    countryCode: _countryCodeController.text,
-                    countryDialogCode: _countryDialogCodeController.text,
-                  );
-                  if (widget.tour.filled + group.adultCount <=
-                      widget.tour.capacity) {
-                    try {
-                      if (!context.mounted) return;
-                      // Close the add group dialog
-                      Navigator.of(context).pop();
-                      // Close the tour dialog
-                      Navigator.of(context).pop();
-                      // Navigate to QR image screen
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => QRImage(
-                            group,
-                            widget.companyId,
-                            widget.boatId,
-                            widget.tour,
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to create group'),
-                        ),
-                      );
-                    }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Group capacity exceeds tour capacity'),
-                      ),
-                    );
-                  }
-                },
-                child: Text('Add Group',
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary)),
+              padding: EdgeInsets.only(left: 10, right: 10, top: 10),
+              color: Colors.white, // Set background to white
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Cancel action
+                    },
+                    child: Text('Cancel',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isButtonEnabled ? _validateAndSubmit : null,
+                    child: Text('Add Group',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1926,6 +2069,7 @@ void openGroupEditPopup(
     String companyId,
     String boatId,
     String tourId,
+    TourModel tour,
     FirestoreDatabase firestoreDatabase) {
   showDialog(
     context: context,
@@ -1939,17 +2083,10 @@ void openGroupEditPopup(
             companyId: companyId,
             boatId: boatId,
             tourId: tourId,
+            tour: tour,
             firestoreDatabase: firestoreDatabase,
           ),
         ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('Cancel'),
-          ),
-        ],
       );
     },
   );
@@ -1960,6 +2097,7 @@ class GroupEditPopup extends StatefulWidget {
   final String companyId;
   final String boatId;
   final String tourId;
+  final TourModel tour;
   final FirestoreDatabase firestoreDatabase;
 
   const GroupEditPopup({
@@ -1968,6 +2106,7 @@ class GroupEditPopup extends StatefulWidget {
     required this.companyId,
     required this.boatId,
     required this.tourId,
+    required this.tour,
     required this.firestoreDatabase,
   });
 
@@ -1984,6 +2123,9 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
   late TextEditingController _mobileNumberController;
   late TextEditingController _countryCodeController;
   late TextEditingController _countryDialogCodeController;
+  bool _isButtonEnabled = false;
+  bool _isPriceManuallyEdited = false;
+
   @override
   void initState() {
     super.initState();
@@ -2002,6 +2144,67 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
         TextEditingController(text: widget.group.countryCode);
     _countryDialogCodeController =
         TextEditingController(text: widget.group.countryDialogCode);
+
+    _groupNameController.addListener(_updateButtonState);
+    _adultCountController.addListener(() {
+      _updateButtonState();
+      _isPriceManuallyEdited = false;
+    });
+    _childCountController.addListener(() {
+      _updateButtonState();
+      _isPriceManuallyEdited = false;
+    });
+    _priceController.addListener(_updateButtonState);
+    _mobileNumberController.addListener(_updateButtonState);
+  }
+
+  void _updateButtonState() {
+    setState(() {
+      _isButtonEnabled = _groupNameController.text.isNotEmpty &&
+          _adultCountController.text.isNotEmpty &&
+          _childCountController.text.isNotEmpty &&
+          _priceController.text.isNotEmpty &&
+          _mobileNumberController.text.isNotEmpty;
+    });
+  }
+
+  void saveGroup() {
+    if (_isButtonEnabled) {
+      final adultCount = int.tryParse(_adultCountController.text) ?? 0;
+      final childCount = int.tryParse(_childCountController.text) ?? 0;
+
+      if (widget.tour.filled - widget.group.adultCount + adultCount <=
+          widget.tour.capacity) {
+        final updatedGroup = GroupModel(
+          id: widget.group.id,
+          groupName: _groupNameController.text,
+          adultCount: adultCount,
+          childCount: childCount,
+          price: double.tryParse(_priceController.text) ?? 0.0,
+          paymentStatus: _paymentStatusController.text,
+          bookerId: widget.group.bookerId,
+          mobileNumber: _mobileNumberController.text,
+          countryCode: _countryCodeController.text,
+          countryDialogCode: _countryDialogCodeController.text,
+          hasArrived: widget.group.hasArrived,
+        );
+        widget.firestoreDatabase.updateGroup(widget.companyId, widget.boatId,
+            widget.tourId, widget.group.id, updatedGroup);
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Group capacity exceeds tour capacity'),
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill all fields before updating the group'),
+        ),
+      );
+    }
   }
 
   @override
@@ -2032,24 +2235,72 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                 children: [
                   TextField(
                     controller: _groupNameController,
+                    cursorColor: Theme.of(context).colorScheme.primary,
                     decoration: InputDecoration(labelText: 'Group Name'),
+                    maxLength: 20,
                   ),
                   SizedBox(height: 10),
                   TextField(
                     controller: _adultCountController,
+                    cursorColor: Theme.of(context).colorScheme.primary,
                     decoration: InputDecoration(labelText: 'Adult Count'),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 2,
                   ),
                   TextField(
                     controller: _childCountController,
+                    cursorColor: Theme.of(context).colorScheme.primary,
                     decoration: InputDecoration(labelText: 'Child Count'),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 2,
                   ),
                   SizedBox(height: 10),
-                  TextField(
-                    controller: _priceController,
-                    decoration: InputDecoration(labelText: 'Price'),
-                    keyboardType: TextInputType.number,
+                  FutureBuilder(
+                    future: widget.firestoreDatabase.getTypeInfo(
+                        widget.companyId, widget.boatId, widget.tour.tourType),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        final typeInfo = snapshot.data as TypeModel;
+                        final pricePerAdult = typeInfo.pricePerAdult;
+                        final pricePerChild = typeInfo.pricePerChild;
+
+                        void updatePrice() {
+                          if (!_isPriceManuallyEdited) {
+                            final adultCount =
+                                int.tryParse(_adultCountController.text) ?? 0;
+                            final childCount =
+                                int.tryParse(_childCountController.text) ?? 0;
+                            final totalPrice = (pricePerAdult * adultCount) +
+                                (pricePerChild * childCount);
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _priceController.text = totalPrice.toString();
+                            });
+                          }
+                        }
+
+                        _adultCountController.addListener(updatePrice);
+                        _childCountController.addListener(updatePrice);
+
+                        updatePrice();
+
+                        return TextField(
+                          controller: _priceController,
+                          cursorColor: Theme.of(context).colorScheme.primary,
+                          decoration: InputDecoration(
+                            labelText: 'Price',
+                          ),
+                          keyboardType: TextInputType.number,
+                          onTap: () {
+                            setState(() {
+                              _isPriceManuallyEdited = true;
+                            });
+                          },
+                        );
+                      }
+                      return Text('');
+                    },
                   ),
                   SizedBox(height: 10),
                   DropdownButtonFormField<String>(
@@ -2120,33 +2371,36 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
             left: 0,
             right: 0,
             child: Container(
-              margin: EdgeInsets.only(left: 40, right: 40),
-              child: ElevatedButton(
-                onPressed: () {
-                  final updatedGroup = GroupModel(
-                    groupName: _groupNameController.text,
-                    adultCount: int.tryParse(_adultCountController.text) ?? 0,
-                    childCount: int.tryParse(_childCountController.text) ?? 0,
-                    price: double.tryParse(_priceController.text) ?? 0.0,
-                    paymentStatus: _paymentStatusController.text,
-                    bookerId: widget.group.bookerId,
-                    mobileNumber: _mobileNumberController.text,
-                    countryCode: _countryCodeController.text,
-                    countryDialogCode: _countryDialogCodeController.text,
-                  );
-                  widget.firestoreDatabase.updateGroup(
-                      widget.companyId,
-                      widget.boatId,
-                      widget.tourId,
-                      widget.group.id,
-                      updatedGroup);
-                  Navigator.of(context).pop();
-                },
-                child: Text('UPDATE GROUP',
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary)),
+              padding: EdgeInsets.only(left: 10, right: 10, top: 10),
+              color: Colors.white, // Set background to white
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Cancel action
+                    },
+                    child: Text('Cancel',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isButtonEnabled
+                        ? () {
+                            saveGroup();
+                            Navigator.of(context)
+                                .pop(); // Push navigator after saving
+                          }
+                        : null,
+                    child: Text('UPDATE GROUP',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -2170,39 +2424,9 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
             companyId: companyId,
             boatId: boatId,
             tour: tour,
+            firestoreDatabase: firestoreDatabase,
           ),
         ),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  shape: CircleBorder(),
-                ),
-                onPressed: () {
-                  openGroupDeletePopup(context, group, companyId, boatId,
-                      tour.id, firestoreDatabase);
-                },
-                child: Icon(Icons.delete,
-                    color: Theme.of(context).colorScheme.onPrimary),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  shape: CircleBorder(),
-                ),
-                onPressed: () {
-                  openGroupEditPopup(context, group, companyId, boatId, tour.id,
-                      firestoreDatabase);
-                },
-                child: Icon(Icons.edit,
-                    color: Theme.of(context).colorScheme.onPrimary),
-              ),
-            ],
-          ),
-        ],
       );
     },
   );
@@ -2213,13 +2437,14 @@ class GroupPopup extends StatelessWidget {
   final String companyId;
   final String boatId;
   final TourModel tour;
-
+  final FirestoreDatabase firestoreDatabase;
   const GroupPopup({
     super.key,
     required this.group,
     required this.companyId,
     required this.boatId,
     required this.tour,
+    required this.firestoreDatabase,
   });
 
   @override
@@ -2230,32 +2455,100 @@ class GroupPopup extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                SizedBox(height: 20),
+                if (!group.hasArrived) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
+                          shape: CircleBorder(),
+                        ),
+                        onPressed: () {
+                          openGroupDeletePopup(context, group, companyId,
+                              boatId, tour.id, firestoreDatabase);
+                        },
+                        child: Icon(Icons.delete,
+                            color: Theme.of(context).colorScheme.error),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
+                          shape: CircleBorder(),
+                        ),
+                        onPressed: () {
+                          openGroupEditPopup(context, group, companyId, boatId,
+                              tour.id, tour, firestoreDatabase);
+                        },
+                        child: Icon(Icons.edit,
+                            color: Theme.of(context).colorScheme.primary),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  SizedBox(height: 20),
+                ],
                 Text(group.groupName.toUpperCase(),
                     style: TextStyle(
                         fontSize: 35,
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary)),
-                SizedBox(height: 20),
-                Text(
-                    '${group.paymentStatus.toUpperCase()}: ${group.price.round()}€',
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${group.paymentStatus.toUpperCase()}:',
+                          style: TextStyle(
+                            fontSize: 25,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          '${group.price.round()}€',
+                          style: TextStyle(
+                            fontSize: 25,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 25),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${group.adultCount} ${group.adultCount == 1 ? 'ADULT' : 'ADULTS'}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          group.childCount > 0
+                              ? '${group.childCount} ${group.childCount == 1 ? 'CHILD' : 'CHILDREN'}'
+                              : '',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Text(group.hasArrived ? 'HAS ARRIVED' : 'HAS NOT ARRIVED',
                     style: TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary)),
-                SizedBox(height: 25),
-                Text(
-                    '${group.adultCount} ${group.adultCount == 1 ? 'ADULT' : 'ADULTS'}',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary)),
-                Text(
-                    group.childCount > 0
-                        ? '${group.childCount} ${group.childCount == 1 ? 'CHILD' : 'CHILDREN'}'
-                        : '',
-                    style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary)),
               ],
@@ -2270,7 +2563,13 @@ class GroupPopup extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
+                  CallButton(
+                    phoneNumber:
+                        '${group.countryDialogCode}${group.mobileNumber}',
+                  ),
+                  SizedBox(width: 10),
                   IconButton(
+                    color: Theme.of(context).colorScheme.secondary,
                     icon: Icon(Icons.qr_code),
                     onPressed: () {
                       Navigator.push(
@@ -2287,7 +2586,7 @@ class GroupPopup extends StatelessWidget {
                     },
                   ),
                   SizedBox(width: 10),
-                  CallButton(
+                  MessageButton(
                     phoneNumber:
                         '${group.countryDialogCode}${group.mobileNumber}',
                   ),
@@ -2355,20 +2654,36 @@ class CallButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: Color.fromRGBO(56, 176, 0, 1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(25),
-        ),
-        padding: EdgeInsets.symmetric(horizontal: 40),
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        shape: CircleBorder(),
+        padding: EdgeInsets.all(10),
       ),
       onPressed: () {
         launchUrl(Uri.parse('tel:$phoneNumber'));
       },
-      child: Text('CALL',
-          style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onPrimary)),
+      child: Icon(Icons.call, color: Theme.of(context).colorScheme.onPrimary),
+    );
+  }
+}
+
+class MessageButton extends StatelessWidget {
+  final String phoneNumber;
+
+  const MessageButton({super.key, required this.phoneNumber});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        shape: CircleBorder(),
+        padding: EdgeInsets.all(10),
+      ),
+      onPressed: () {
+        launchUrl(Uri.parse('sms:$phoneNumber'));
+      },
+      child:
+          Icon(Icons.message, color: Theme.of(context).colorScheme.onPrimary),
     );
   }
 }

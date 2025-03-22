@@ -143,7 +143,10 @@ class SettingsScreen extends StatelessWidget {
                       },
                     ),
                   ),
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.5),
+
+                  SizedBox(height: 10),
+
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.4),
                   ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.onError,

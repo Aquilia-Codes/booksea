@@ -76,7 +76,8 @@ class QRImage extends StatelessWidget {
                       ],
                     ),
                     QrImageView(
-                      data: '$companyId/$boatId/${tour.id}/${group.id}',
+                      data:
+                          '$companyId/${boatId.replaceAll(' ', '_')}/${tour.id}/${group.id}',
                       size: 280,
                       embeddedImageStyle: QrEmbeddedImageStyle(
                         size: const Size(

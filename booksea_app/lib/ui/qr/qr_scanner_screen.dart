@@ -46,7 +46,7 @@ class QRScannerScreen extends StatelessWidget {
                   final parts = code.split('/');
                   if (parts.length == 4) {
                     final companyId = parts[0];
-                    final boatId = parts[1];
+                    final boatId = parts[1].replaceAll('_', ' ');
                     final tourId = parts[2];
                     final groupId = parts[3];
                     print(companyId);

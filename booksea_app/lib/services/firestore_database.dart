@@ -102,7 +102,26 @@ class FirestoreDatabase {
     final tours = await getTours(companyId, boatId, startTime, endTime);
     final totalPrice = tours.fold(0.0, (sum, tour) => sum + tour.price);
     final user = await getUser();
-    final userTours = tours.where((tour) => tour.bookerId == user.uid).toList();
+
+    // Create a list to store tours where the user is the booker of any group
+    List<TourModel> userTours = [];
+
+    // Check each tour for groups booked by the current user
+    for (var tour in tours) {
+      // Get all groups for this tour
+      final groupsSnapshot = await FirebaseFirestore.instance
+          .collection(FirestorePath.groups(companyId, boatId, tour.id))
+          .get();
+
+      // Check if any group has the current user as bookerId
+      final hasUserAsBooker = groupsSnapshot.docs
+          .any((groupDoc) => groupDoc.data()['bookerId'] == user.uid);
+
+      // If user is the booker for any group in this tour, add it to userTours
+      if (hasUserAsBooker) {
+        userTours.add(tour);
+      }
+    }
     final totalProvision = userTours.fold(
         0.0, (sum, tour) => sum + (tour.price * (user.provision / 100)));
     yield {
@@ -149,8 +168,6 @@ class FirestoreDatabase {
         throw Exception('A tour already exists in this time range.');
       }
     }
-
-    tour.bookerId = user.uid;
 
     final tourRef = FirebaseFirestore.instance
         .collection(FirestorePath.tours(companyId, boatId))

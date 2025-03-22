@@ -7,6 +7,7 @@ class UserModel {
   final bool isOwner;
   final String companyId;
   final String email;
+  final String? phoneNumber;
   final String nickname;
   final int provision;
   final List<dynamic>
@@ -21,6 +22,7 @@ class UserModel {
     required this.email,
     required this.nickname,
     required this.provision,
+    this.phoneNumber,
     this.boatIds = const [],
   });
 
@@ -31,6 +33,7 @@ class UserModel {
     bool? isOwner,
     String? companyId,
     String? email,
+    String? phoneNumber,
     String? nickname,
     int? provision,
     List<dynamic>? boatIds,
@@ -42,6 +45,7 @@ class UserModel {
       isOwner: isOwner ?? this.isOwner,
       companyId: companyId ?? this.companyId,
       email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       nickname: nickname ?? this.nickname,
       provision: provision ?? this.provision,
       boatIds: boatIds ?? this.boatIds,
@@ -57,6 +61,7 @@ class UserModel {
       isOwner: data['isOwner'],
       companyId: data['companyId'],
       email: data['email'],
+      phoneNumber: data['phoneNumber'],
       nickname: data['nickname'],
       provision: provision,
       boatIds: data['boatIds'] ?? [],
@@ -71,6 +76,7 @@ class UserModel {
       'isOwner': isOwner,
       'companyId': companyId,
       'email': email,
+      'phoneNumber': phoneNumber,
       'nickname': nickname,
       'provision': provision,
       'boatIds': boatIds,

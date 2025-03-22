@@ -8,6 +8,7 @@ class TypeModel {
   final DateTime startTime;
   final DateTime endTime;
   final int typeImage;
+  final List<String>? options;
 
   TypeModel({
     required this.typeName,
@@ -16,6 +17,7 @@ class TypeModel {
     required this.startTime,
     required this.endTime,
     required this.typeImage,
+    this.options,
   });
 
   factory TypeModel.fromMap(Map<String, dynamic> data, String documentId) {
@@ -34,6 +36,7 @@ class TypeModel {
           ? (data['endTime'] as Timestamp).toDate()
           : DateTime.parse(data['endTime']),
       typeImage: data['typeImage'],
+      options: data['options'],
     );
   }
 
@@ -51,6 +54,7 @@ class TypeModel {
       'endTime':
           endTime.toIso8601String().split('T')[1], // Return only the time part
       'typeImage': typeImage,
+      'options': options,
     };
   }
 }
