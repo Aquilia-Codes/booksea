@@ -8,6 +8,7 @@ import 'package:booksea_app/services/firestore_database.dart';
 import 'package:booksea_app/ui/search/search_and_filter.dart';
 import 'package:booksea_app/ui/home/home.dart';
 import 'package:booksea_app/ui/home/no_code_home.dart';
+import 'package:booksea_app/ui/home/something_is_missing_screen.dart';
 import 'package:booksea_app/ui/qr/qr_scanner_screen.dart';
 import 'package:booksea_app/ui/settings/settings_screen.dart';
 import 'package:booksea_app/ui/splash/splash_screen.dart';
@@ -66,6 +67,11 @@ class _MyAppState extends State<MyApp> {
                 builder: (context) {
                   switch (authProviderRef.status) {
                     case Status.Authenticated:
+                      // We'll still keep this check as a fallback
+                      if (userSnapshot.hasData &&
+                          !userSnapshot.data!.hasAccess) {
+                        return const SomethingIsMissingScreen();
+                      }
                       return Scaffold(
                         body: _screens[_selectedIndex],
                         bottomNavigationBar: BottomNavigationBar(
@@ -95,13 +101,15 @@ class _MyAppState extends State<MyApp> {
                       return const SplashScreen();
                     case Status.Uninitialized:
                       return const Material(
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(child: Text('')),
                       );
                     case Status.NoCode:
                       return const NoCodeHomeScreen();
+                    case Status.NoAccess:
+                      return const SomethingIsMissingScreen();
                     default:
                       return const Material(
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(child: Text('')),
                       );
                   }
                 },

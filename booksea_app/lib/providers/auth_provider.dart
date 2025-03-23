@@ -13,7 +13,8 @@ enum Status {
   Authenticating,
   Unauthenticated,
   Registering,
-  NoCode
+  NoCode,
+  NoAccess
 }
 
 class AuthProvider extends ChangeNotifier {
@@ -119,11 +120,21 @@ class AuthProvider extends ChangeNotifier {
 
         final firestoreDatabase = FirestoreDatabase(uid: firebaseUser.uid);
 
+        // First check if company code exists
         if (_companyId!.isEmpty ||
             !await firestoreDatabase.companyExists(_companyId!)) {
           _status = Status.NoCode;
         } else {
-          _status = Status.Authenticated;
+          // Only if company code exists, check for access and boat IDs
+          bool hasAccess = userData?['hasAccess'] ?? false;
+
+          // Show "something is missing" screen if user has no access OR no boat IDs
+          // but only if they already have a valid company code
+          if (!hasAccess || _boatIds.isEmpty) {
+            _status = Status.NoAccess;
+          } else {
+            _status = Status.Authenticated;
+          }
         }
       } else {
         _status = Status.NoCode;

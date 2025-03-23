@@ -133,7 +133,7 @@ class SettingsScreen extends StatelessWidget {
                           );
                         } else {
                           return Text(
-                            'Loading...',
+                            '',
                             style: TextStyle(
                               fontSize: 16,
                               color: Theme.of(context).colorScheme.primary,
