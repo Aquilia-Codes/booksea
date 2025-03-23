@@ -23,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late DateTime selectedDate;
   late String boatId;
+  late String companyId;
 
   @override
   void initState() {
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     selectedDate = DateTime.now();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     boatId = authProvider.boatIds.first;
+    companyId = authProvider.companyId!;
   }
 
   @override
@@ -74,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           TourDataStream(
-            companyId: authProvider.companyId!,
+            companyId: companyId,
             boatId: boatId,
             selectedDate: selectedDate,
             firestoreDatabase: firestoreDatabase,
@@ -122,12 +124,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: FloatingActionButton(
               heroTag: 'add_tour_fab',
               onPressed: () async {
-                final companyId = authProvider.companyId;
-
-                if (companyId != null) {
-                  showTourSelectionModal(context, companyId, firestoreDatabase,
-                      authProvider, selectedDate, boatId);
-                }
+                showTourSelectionModal(context, companyId, firestoreDatabase,
+                    authProvider, selectedDate, boatId);
               },
               backgroundColor: Theme.of(context).colorScheme.primary,
               elevation: 3.0,
@@ -422,9 +420,9 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
           startTime!.minute,
         )),
         endTime: Timestamp.fromDate(DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
+          endDate.year,
+          endDate.month,
+          endDate.day,
           endTime!.hour,
           endTime!.minute,
         )),
@@ -485,7 +483,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                         return Center(child: Text('Error: ${snapshot.error}'));
                       } else if (!snapshot.hasData ||
                           snapshot.data!['tourTypes'].isEmpty) {
-                        return Center(child: Text('No tour types available'));
+                        return Center(child: Text(''));
                       } else {
                         List<TypeModel> types = snapshot.data!['tourTypes'];
                         return Column(
@@ -646,7 +644,8 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                           await showDatePicker(
                                         context: context,
                                         initialDate: endDate,
-                                        firstDate: DateTime(2024),
+                                        firstDate:
+                                            startDate, // Ensure end date is after start date
                                         lastDate: DateTime(2101),
                                       );
                                       if (pickedDate != null) {
@@ -696,7 +695,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                             ),
                             const SizedBox(height: 10),
                             TextField(
-                              maxLength: 30,
+                              maxLength: 20,
                               cursorColor:
                                   Theme.of(context).colorScheme.primary,
                               decoration: InputDecoration(labelText: 'Notes'),
@@ -785,7 +784,7 @@ class TourDataStream extends StatelessWidget {
         } else if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         } else if (!snapshot.hasData) {
-          return Center(child: Text('No tour data available'));
+          return Center(child: Text(''));
         } else {
           final totalPrice = snapshot.data!['totalPrice'];
           final totalProvision = snapshot.data!['totalProvision'];
@@ -823,7 +822,7 @@ class TourDataStream extends StatelessWidget {
                           child: Text('Error: ${tourSnapshot.error}'));
                     } else if (!tourSnapshot.hasData ||
                         tourSnapshot.data!.isEmpty) {
-                      return Center(child: Text('No tour data available'));
+                      return Center(child: Text(''));
                     } else {
                       return ListView.builder(
                         itemCount: tourSnapshot.data!.length,
@@ -1135,13 +1134,12 @@ class _TourPopupState extends State<TourPopup> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   shape: CircleBorder(),
-                  fixedSize: Size(10, 10),
                   backgroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
-                onPressed: () => openTourEditPopup(context, widget.companyId,
-                    widget.boatId, widget.tour, widget.firestoreDatabase),
-                child: Icon(Icons.edit,
-                    color: Theme.of(context).colorScheme.primary),
+                onPressed: () => openTourDeletePopup(context, widget.tour,
+                    widget.companyId, widget.boatId, widget.firestoreDatabase),
+                child: Icon(Icons.delete,
+                    color: Theme.of(context).colorScheme.error),
               ),
               Container(
                 width: MediaQuery.of(context).size.width * 0.4,
@@ -1182,12 +1180,13 @@ class _TourPopupState extends State<TourPopup> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   shape: CircleBorder(),
+                  fixedSize: Size(10, 10),
                   backgroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
-                onPressed: () => openTourDeletePopup(context, widget.tour,
-                    widget.companyId, widget.boatId, widget.firestoreDatabase),
-                child: Icon(Icons.delete,
-                    color: Theme.of(context).colorScheme.error),
+                onPressed: () => openTourEditPopup(context, widget.companyId,
+                    widget.boatId, widget.tour, widget.firestoreDatabase),
+                child: Icon(Icons.edit,
+                    color: Theme.of(context).colorScheme.primary),
               ),
             ],
           ),
@@ -1213,7 +1212,7 @@ void openTourEditPopup(BuildContext context, String companyId, String boatId,
       return AlertDialog(
         content: SizedBox(
           width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.6,
+          height: MediaQuery.of(context).size.height * 0.7,
           child: TourEditPopup(
             tour: tour,
             companyId: companyId,
@@ -1250,11 +1249,16 @@ class _TourEditPopupState extends State<TourEditPopup> {
   late TextEditingController _endTimeController;
   late TextEditingController _capacityController;
   late TextEditingController _noteController;
+  late DateTime startDate;
+  late DateTime endDate;
+  late TimeOfDay startTime;
+  late TimeOfDay endTime;
   bool _isButtonEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    // Initialize controllers
     _tourNameController = TextEditingController(text: widget.tour.tourName);
     _startTimeController =
         TextEditingController(text: widget.tour.startTime.toDate().toString());
@@ -1263,6 +1267,14 @@ class _TourEditPopupState extends State<TourEditPopup> {
     _capacityController =
         TextEditingController(text: widget.tour.capacity.toString());
     _noteController = TextEditingController(text: widget.tour.note);
+
+    // Initialize date and time values from the tour
+    startDate = widget.tour.startTime.toDate();
+    endDate = widget.tour.endTime.toDate();
+    startTime = TimeOfDay.fromDateTime(startDate);
+    endTime = TimeOfDay.fromDateTime(endDate);
+
+    // Add listeners for button state
     _tourNameController.addListener(_updateButtonState);
     _startTimeController.addListener(_updateButtonState);
     _endTimeController.addListener(_updateButtonState);
@@ -1284,9 +1296,20 @@ class _TourEditPopupState extends State<TourEditPopup> {
       final updatedTour = TourModel(
         id: widget.tour.id,
         tourName: _tourNameController.text,
-        startTime:
-            Timestamp.fromDate(DateTime.parse(_startTimeController.text)),
-        endTime: Timestamp.fromDate(DateTime.parse(_endTimeController.text)),
+        startTime: Timestamp.fromDate(DateTime(
+          startDate.year,
+          startDate.month,
+          startDate.day,
+          startTime.hour,
+          startTime.minute,
+        )),
+        endTime: Timestamp.fromDate(DateTime(
+          endDate.year,
+          endDate.month,
+          endDate.day,
+          endTime.hour,
+          endTime.minute,
+        )),
         capacity: int.parse(_capacityController.text),
         filled: widget.tour.filled,
         tourType: widget.tour.tourType,
@@ -1313,7 +1336,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.6,
+                maxHeight: MediaQuery.of(context).size.height * 0.65,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1354,23 +1377,25 @@ class _TourEditPopupState extends State<TourEditPopup> {
                         child: ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                              '${widget.tour.startTime.toDate().day}.${widget.tour.startTime.toDate().month}.${widget.tour.startTime.toDate().year} at ${TimeOfDay.fromDateTime(widget.tour.startTime.toDate()).format(context)}'),
+                              '${startDate.day}.${startDate.month}.${startDate.year} at ${startTime.format(context)}'),
                           trailing: Icon(Icons.keyboard_arrow_right),
                           onTap: () async {
                             DateTime? pickedDate = await showDatePicker(
                               context: context,
-                              initialDate: widget.tour.startTime.toDate(),
+                              initialDate: startDate,
                               firstDate: DateTime(2024),
                               lastDate: DateTime(2101),
                             );
                             if (pickedDate != null) {
                               TimeOfDay? pickedTime = await showTimePicker(
                                 context: context,
-                                initialTime: TimeOfDay.fromDateTime(
-                                    widget.tour.startTime.toDate()),
+                                initialTime: startTime,
                               );
                               if (pickedTime != null) {
                                 setState(() {
+                                  startDate = pickedDate;
+                                  startTime = pickedTime;
+                                  // Update controller for consistency
                                   _startTimeController.text = DateTime(
                                     pickedDate.year,
                                     pickedDate.month,
@@ -1409,31 +1434,58 @@ class _TourEditPopupState extends State<TourEditPopup> {
                         child: ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                              '${widget.tour.endTime.toDate().day}.${widget.tour.endTime.toDate().month}.${widget.tour.endTime.toDate().year} at ${TimeOfDay.fromDateTime(widget.tour.endTime.toDate()).format(context)}'),
+                              '${endDate.day}.${endDate.month}.${endDate.year} at ${endTime.format(context)}'),
                           trailing: Icon(Icons.keyboard_arrow_right),
                           onTap: () async {
                             DateTime? pickedDate = await showDatePicker(
                               context: context,
-                              initialDate: widget.tour.endTime.toDate(),
-                              firstDate: DateTime(2024),
+                              initialDate: endDate,
+                              firstDate:
+                                  startDate, // Ensure end date is after start date
                               lastDate: DateTime(2101),
                             );
                             if (pickedDate != null) {
                               TimeOfDay? pickedTime = await showTimePicker(
                                 context: context,
-                                initialTime: TimeOfDay.fromDateTime(
-                                    widget.tour.endTime.toDate()),
+                                initialTime: endTime,
                               );
                               if (pickedTime != null) {
-                                setState(() {
-                                  _endTimeController.text = DateTime(
-                                    pickedDate.year,
-                                    pickedDate.month,
-                                    pickedDate.day,
-                                    pickedTime.hour,
-                                    pickedTime.minute,
-                                  ).toString();
-                                });
+                                DateTime potentialEndDateTime = DateTime(
+                                  pickedDate.year,
+                                  pickedDate.month,
+                                  pickedDate.day,
+                                  pickedTime.hour,
+                                  pickedTime.minute,
+                                );
+                                DateTime startDateTime = DateTime(
+                                  startDate.year,
+                                  startDate.month,
+                                  startDate.day,
+                                  startTime.hour,
+                                  startTime.minute,
+                                );
+                                if (potentialEndDateTime
+                                    .isAfter(startDateTime)) {
+                                  setState(() {
+                                    endDate = pickedDate;
+                                    endTime = pickedTime;
+                                    // Update controller for consistency
+                                    _endTimeController.text = DateTime(
+                                      pickedDate.year,
+                                      pickedDate.month,
+                                      pickedDate.day,
+                                      pickedTime.hour,
+                                      pickedTime.minute,
+                                    ).toString();
+                                  });
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'End time must be after start time.'),
+                                    ),
+                                  );
+                                }
                               }
                             }
                           },
@@ -1445,7 +1497,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
                   TextField(
                     controller: _noteController,
                     decoration: InputDecoration(labelText: 'Note'),
-                    maxLength: 30,
+                    maxLength: 20,
                     cursorColor: Theme.of(context).colorScheme.primary,
                   ),
                   SizedBox(height: 20),
@@ -1728,7 +1780,7 @@ void openGroupAddPopup(BuildContext context, String tourId, String companyId,
       return AlertDialog(
         content: SizedBox(
           width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.6,
+          height: MediaQuery.of(context).size.height * 0.7,
           child: GroupAddPopup(
             tourId: tourId,
             tour: tour,
@@ -1882,7 +1934,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.6,
+                maxHeight: MediaQuery.of(context).size.height * 0.65,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -2020,7 +2072,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 20),
+                  SizedBox(height: 50),
                 ],
               ),
             ),
@@ -2077,7 +2129,7 @@ void openGroupEditPopup(
       return AlertDialog(
         content: SizedBox(
           width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.6,
+          height: MediaQuery.of(context).size.height * 0.7,
           child: GroupEditPopup(
             group: group,
             companyId: companyId,
@@ -2228,7 +2280,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.6,
+                maxHeight: MediaQuery.of(context).size.height * 0.65,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -2361,7 +2413,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 20),
+                  SizedBox(height: 50),
                 ],
               ),
             ),

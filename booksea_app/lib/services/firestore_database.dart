@@ -158,13 +158,23 @@ class FirestoreDatabase {
     print('Existing tours: ${existingTours}');
     print('Tour: ${tour.startTime} to ${tour.endTime}');
     print('User: ${user.uid}');
+
+    // Convert Timestamps to DateTime for easier comparison
+    final newTourStart = tour.startTime.toDate();
+    final newTourEnd = tour.endTime.toDate();
+
     for (var existingTour in existingTours) {
-      if ((tour.startTime.compareTo(existingTour.startTime) >= 0 &&
-              tour.startTime.compareTo(existingTour.endTime) < 0) ||
-          (tour.endTime.compareTo(existingTour.startTime) > 0 &&
-              tour.endTime.compareTo(existingTour.endTime) <= 0) ||
-          (tour.startTime.compareTo(existingTour.startTime) <= 0 &&
-              tour.endTime.compareTo(existingTour.endTime) >= 0)) {
+      final existingTourStart = existingTour.startTime.toDate();
+      final existingTourEnd = existingTour.endTime.toDate();
+
+      // Check for any overlap between tours
+      // This handles cases like:
+      // 1. New tour starts during an existing tour (e.g., existing 7-9am, new 8-10am)
+      // 2. New tour ends during an existing tour (e.g., existing 9-11am, new 8-10am)
+      // 3. New tour completely contains an existing tour
+      // 4. New tour is completely contained within an existing tour
+      if (newTourStart.isBefore(existingTourEnd) &&
+          newTourEnd.isAfter(existingTourStart)) {
         throw Exception('A tour already exists in this time range.');
       }
     }
@@ -407,19 +417,25 @@ class FirestoreDatabase {
 
   /* Search section */
 
-  // search for a tour by boatId, tourType name, date range and capacity (where it needs to fit the capacity of the tour - filled )
-  Future<List<TourModel>> searchTours(
+  // search for a tour by boatId, tourType names, start date and end date range (all the tours in that timeframe) and capacity (where it needs to fit the capacity of the tour - filled )
+  Stream<List<TourModel>> searchTours(
       String companyId,
       String boatId,
-      String tourType,
+      List<String> tourTypeNames,
       DateTime startTime,
       DateTime endTime,
-      int capacity) async {
-    final tours = await getTours(companyId, boatId, startTime, endTime);
-    return tours
-        .where((tour) =>
-            tour.tourType == tourType &&
-            tour.capacity - tour.filled >= capacity)
-        .toList();
+      int count) async* {
+    await for (final tours
+        in getToursStream(companyId, boatId, startTime, endTime)) {
+      final filteredTours = tours.where((tour) {
+        return (tour.startTime.toDate().isAfter(startTime) &&
+            tour.endTime.toDate().isBefore(endTime));
+      }).toList();
+      yield filteredTours
+          .where((tour) =>
+              tourTypeNames.contains(tour.tourType) &&
+              tour.capacity - tour.filled >= count)
+          .toList();
+    }
   }
 }
