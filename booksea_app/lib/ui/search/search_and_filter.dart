@@ -1428,12 +1428,12 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
       if (widget.tour.filled + group.adultCount <= widget.tour.capacity) {
         try {
           // Add the group to the database
-          await widget.firestoreDatabase.createGroup(
+          GroupModel createdGroup = (await widget.firestoreDatabase.createGroup(
             widget.companyId,
             widget.boatId,
             widget.tour.id,
             group,
-          );
+          ));
 
           if (!context.mounted) return;
           // Close the add group dialog
@@ -1445,7 +1445,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
             context,
             MaterialPageRoute(
               builder: (context) => QRImage(
-                group,
+                createdGroup,
                 widget.companyId,
                 widget.boatId,
                 widget.tour,

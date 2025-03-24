@@ -67,31 +67,31 @@ class AuthProvider extends ChangeNotifier {
 
     final docRef = _firestore.collection('users').doc(user.uid);
     final docSnapshot = await docRef.get();
-
+//TODO CHANGE THIS LATER
     if (docSnapshot.exists) {
       final userData = docSnapshot.data()!;
       return UserModel(
         uid: user.uid,
-        hasAccess: userData['hasAccess'] ?? false,
+        hasAccess: true,
         isAdmin: userData['isAdmin'] ?? false,
         isOwner: userData['isOwner'] ?? false,
         email: user.email ?? '',
         nickname: userData['nickname'] ?? user.displayName ?? '',
         provision: userData['provision'] ?? 0,
         companyId: userData['companyId'] ?? '',
-        boatIds: List<String>.from(userData['boatIds'] ?? []),
+        boatIds: List<String>.from(['Catamaran', 'Yacht']),
       );
     } else {
       return UserModel(
         uid: user.uid,
-        hasAccess: false,
+        hasAccess: true,
         isAdmin: false,
         isOwner: false,
         email: user.email ?? '',
         nickname: user.displayName ?? '',
         provision: 0,
         companyId: '',
-        boatIds: [],
+        boatIds: ['Catamaran', 'Yacht'],
       );
     }
   }

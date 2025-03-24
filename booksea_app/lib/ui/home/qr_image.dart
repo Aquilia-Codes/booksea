@@ -1,9 +1,9 @@
 import 'package:booksea_app/models/group_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:screenshot/screenshot.dart';
 
 class QRImage extends StatelessWidget {
@@ -13,7 +13,13 @@ class QRImage extends StatelessWidget {
   final TourModel tour;
   final ScreenshotController screenshotController = ScreenshotController();
 
-  QRImage(this.group, this.companyId, this.boatId, this.tour, {super.key});
+  QRImage(this.group, this.companyId, this.boatId, this.tour, {super.key}) {
+    // Print the group, companyId, boatId, tour, and QR data
+    print(
+        'Group: ${group.groupName}, Company ID: $companyId, Boat ID: $boatId, Tour ID: ${tour.id}');
+    print(
+        'QR Data: $companyId/${boatId.replaceAll(' ', '_')}/${tour.id}/${group.id}');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +32,7 @@ class QRImage extends StatelessWidget {
             Screenshot(
               controller: screenshotController,
               child: Container(
+                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 15),
                 color: Theme.of(context).colorScheme.onPrimary,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -94,22 +101,17 @@ class QRImage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                IconButton(
-                  icon:
-                      Image.asset('assets/whatsapp.png', width: 50, height: 50),
-                  onPressed: () => _sendToWhatsApp(context),
-                  tooltip: 'Send via WhatsApp',
-                ),
-                IconButton(
-                  icon:
-                      Image.asset('assets/telegram.png', width: 50, height: 50),
-                  onPressed: () => _sendToTelegram(context),
-                  tooltip: 'Send via Telegram',
-                ),
-                IconButton(
-                  icon: Image.asset('assets/viber.png', width: 50, height: 50),
-                  onPressed: () => _sendToViber(context),
-                  tooltip: 'Send via Viber',
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: IconButton(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    icon: Icon(Icons.share),
+                    onPressed: () => _shareQRCode(context),
+                    tooltip: 'Share QR Code',
+                  ),
                 ),
               ],
             ),
@@ -118,73 +120,22 @@ class QRImage extends StatelessWidget {
       ),
     );
   }
-  // Add this import for sharing functionality
 
-  Future<void> _sendToWhatsApp(BuildContext context) async {
-    try {
-      final image = await screenshotController.capture();
-      if (image != null) {
-        final whatsappUrl = Uri.parse(
-            'whatsapp://send?phone=${group.countryDialogCode}${group.mobileNumber}');
-        if (await canLaunchUrl(whatsappUrl)) {
-          await launchUrl(whatsappUrl);
-          // Use Share package to send the image
-          await Share.shareXFiles(
-              [XFile.fromData(image, mimeType: 'image/png')],
-              text: 'Here is the QR code');
-        } else {
-          _showError(context, 'WhatsApp is not installed');
-        }
-      }
-    } catch (e) {
-      _showError(context, 'Could not launch WhatsApp');
-    }
-  }
-
-  Future<void> _sendToTelegram(BuildContext context) async {
-    try {
-      final image = await screenshotController.capture();
-      if (image != null) {
-        final telegramUrl = Uri.parse(
-            'tg://msg?to=${group.countryDialogCode}${group.mobileNumber}');
-        if (await canLaunchUrl(telegramUrl)) {
-          await launchUrl(telegramUrl);
-          // Use Share package to send the image
-          await Share.shareXFiles(
-              [XFile.fromData(image, mimeType: 'image/png')],
-              text: 'Here is the QR code');
-        } else {
-          _showError(context, 'Telegram is not installed');
-        }
-      }
-    } catch (e) {
-      _showError(context, 'Could not launch Telegram');
-    }
-  }
-
-  Future<void> _sendToViber(BuildContext context) async {
-    try {
-      final image = await screenshotController.capture();
-      if (image != null) {
-        final viberUrl = Uri.parse('viber://forward');
-        if (await canLaunchUrl(viberUrl)) {
-          await launchUrl(viberUrl);
-          // Use Share package to send the image
-          await Share.shareXFiles(
-              [XFile.fromData(image, mimeType: 'image/png')],
-              text: 'Here is the QR code');
-        } else {
-          _showError(context, 'Viber is not installed');
-        }
-      }
-    } catch (e) {
-      _showError(context, 'Could not launch Viber');
-    }
-  }
-
-  void _showError(BuildContext context, String message) {
+  Future<void> _shareQRCode(BuildContext context) async {
+    // Copy phone number to clipboard
+    await Clipboard.setData(
+        ClipboardData(text: "${group.countryDialogCode}${group.mobileNumber}"));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text('Phone number copied to clipboard')),
     );
+
+    final image = await screenshotController.capture();
+    if (image != null) {
+      await Share.shareXFiles([XFile.fromData(image, mimeType: 'image/png')]);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to capture QR code')),
+      );
+    }
   }
 }

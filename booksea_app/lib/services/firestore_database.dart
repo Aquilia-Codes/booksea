@@ -206,7 +206,7 @@ class FirestoreDatabase {
   /* Group section */
 
   // create a group, needs companyId, boatId, tourId and group data
-  Future<String> createGroup(
+  Future<GroupModel> createGroup(
       String companyId, String boatId, String tourId, GroupModel group) async {
     group.bookerId = uid;
     print('Group bookerId: ${group.bookerId}');
@@ -235,7 +235,7 @@ class FirestoreDatabase {
           'price': updatedPrice,
         });
 
-        return groupRef.id;
+        return GroupModel.fromMap(group.toMap(), groupRef.id);
       } else {
         throw Exception('Group capacity exceeds tour capacity.');
       }
