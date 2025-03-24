@@ -8,27 +8,28 @@ class SomethingIsMissingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/nothing_to_see_here.png'),
+            fit: BoxFit.fitWidth,
+            alignment: Alignment.bottomCenter,
+          ),
+        ),
+        height: MediaQuery.of(context).size.height,
+        width: MediaQuery.of(context).size.width,
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 80,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(height: 24),
               Text(
-                'Something is Missing',
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'You don\'t have permission to access this content. Please contact your administrator for assistance.',
-                style: Theme.of(context).textTheme.bodyLarge,
+                'Nothing to see here...\nyet...\nPlease check back later',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),

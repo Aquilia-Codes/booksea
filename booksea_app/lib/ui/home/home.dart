@@ -1322,7 +1322,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.65,
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1486,10 +1486,6 @@ class _TourEditPopupState extends State<TourEditPopup> {
                     maxLength: 20,
                     cursorColor: Theme.of(context).colorScheme.primary,
                   ),
-                  Container(
-                    height: 50,
-                    child: Text(''),
-                  ),
                 ],
               ),
             ),
@@ -1522,7 +1518,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
                                 .pop(); // Push navigator after saving
                           }
                         : null,
-                    child: Text('UPDATE TOUR',
+                    child: Text('OK',
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -1731,7 +1727,7 @@ class GroupCard extends StatelessWidget {
       child: Card(
         color: cardColor,
         margin:
-            EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
+            EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0, bottom: 10.0),
         child: Padding(
           padding: const EdgeInsets.only(
               left: 15.0, right: 15.0, top: 25.0, bottom: 25.0),
@@ -1923,7 +1919,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.65,
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -2061,10 +2057,6 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                       ),
                     ],
                   ),
-                  Container(
-                    height: 50,
-                    child: Text(''),
-                  ),
                 ],
               ),
             ),
@@ -2091,7 +2083,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   ),
                   ElevatedButton(
                     onPressed: _isButtonEnabled ? _validateAndSubmit : null,
-                    child: Text('Add Group',
+                    child: Text('Add',
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -2272,10 +2264,10 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.65,
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   TextField(
                     controller: _groupNameController,
@@ -2405,10 +2397,6 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                       ),
                     ],
                   ),
-                  Container(
-                    height: 50,
-                    child: Text(''),
-                  ),
                 ],
               ),
             ),
@@ -2441,7 +2429,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                                 .pop(); // Push navigator after saving
                           }
                         : null,
-                    child: Text('UPDATE GROUP',
+                    child: Text('OK',
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,

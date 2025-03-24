@@ -85,6 +85,8 @@ flutter:
     - assets/qr.png
     - assets/search.png
     - assets/business_card.png
+    - assets/nothing_to_see_here.png
+    - assets/company_code.png
     - assets/1.png
     - assets/2.png
     - assets/3.png

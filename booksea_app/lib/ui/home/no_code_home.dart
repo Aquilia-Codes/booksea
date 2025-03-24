@@ -12,20 +12,37 @@ class NoCodeHomeScreen extends StatelessWidget {
     String companyCode = ''; // Variable to store the input value
 
     return Scaffold(
-      body: Center(
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/company_code.png'),
+            fit: BoxFit.fitWidth,
+            alignment: Alignment.center,
+          ),
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            const Text('Home'),
-            const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 150),
                   TextField(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Enter Company Code',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2.0),
+                      ),
+                      labelStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.primary),
                     ),
                     maxLength: 8, // Limit the input to 8 characters
                     onChanged: (value) {
