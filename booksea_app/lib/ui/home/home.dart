@@ -383,16 +383,18 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
           _capacityController.text = data['boatInfo'].capacity.toString();
           startTime = TimeOfDay.fromDateTime(types.first.startTime);
           endTime = TimeOfDay.fromDateTime(types.first.endTime);
+          // Make sure to update button state after setting these values
+          _updateButtonState();
         });
       }
     });
     _tourNameController.addListener(_updateButtonState);
     _capacityController.addListener(_updateButtonState);
-    _notesController.addListener(_updateButtonState);
   }
 
   void _updateButtonState() {
     setState(() {
+      // The button should be enabled when all required fields are filled
       _isButtonEnabled = _tourNameController.text.isNotEmpty &&
           _capacityController.text.isNotEmpty &&
           _selectedTourType != null &&
@@ -537,11 +539,6 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                               decoration:
                                   InputDecoration(labelText: 'Tour Name'),
                               controller: _tourNameController,
-                              onChanged: (value) {
-                                setState(() {
-                                  _tourNameController.text = value;
-                                });
-                              },
                             ),
                             const SizedBox(height: 10),
                             TextField(
@@ -554,11 +551,6 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly
                               ],
-                              onChanged: (value) {
-                                setState(() {
-                                  _capacityController.text = value;
-                                });
-                              },
                             ),
                             const SizedBox(height: 20),
                             // Start Date and Time Picker
@@ -700,11 +692,6 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
                                   Theme.of(context).colorScheme.primary,
                               decoration: InputDecoration(labelText: 'Notes'),
                               controller: _notesController,
-                              onChanged: (value) {
-                                setState(() {
-                                  _notesController.text = value;
-                                });
-                              },
                             ),
                             const SizedBox(height: 20),
                             Center(
@@ -1279,7 +1266,6 @@ class _TourEditPopupState extends State<TourEditPopup> {
     _startTimeController.addListener(_updateButtonState);
     _endTimeController.addListener(_updateButtonState);
     _capacityController.addListener(_updateButtonState);
-    _noteController.addListener(_updateButtonState);
   }
 
   void _updateButtonState() {
@@ -1500,7 +1486,10 @@ class _TourEditPopupState extends State<TourEditPopup> {
                     maxLength: 20,
                     cursorColor: Theme.of(context).colorScheme.primary,
                   ),
-                  SizedBox(height: 20),
+                  Container(
+                    height: 50,
+                    child: Text(''),
+                  ),
                 ],
               ),
             ),
@@ -2072,7 +2061,10 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 50),
+                  Container(
+                    height: 50,
+                    child: Text(''),
+                  ),
                 ],
               ),
             ),
@@ -2413,7 +2405,10 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 50),
+                  Container(
+                    height: 50,
+                    child: Text(''),
+                  ),
                 ],
               ),
             ),

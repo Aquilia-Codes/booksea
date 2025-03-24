@@ -1622,7 +1622,10 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 50),
+                  Container(
+                    height: 50,
+                    child: Text(''),
+                  ),
                 ],
               ),
             ),
@@ -1963,7 +1966,10 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 50),
+                  Container(
+                    height: 50,
+                    child: Text(''),
+                  ),
                 ],
               ),
             ),
