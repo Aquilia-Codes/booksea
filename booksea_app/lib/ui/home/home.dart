@@ -899,26 +899,54 @@ class TourCard extends StatelessWidget {
                       Expanded(
                         flex: 1,
                         child: tour.arrived > 0
-                            ? Container(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 0, horizontal: 8.0),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(20.0),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${tour.arrived} / ${tour.filled}',
-                                    textAlign: TextAlign.end,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimary,
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: 0, horizontal: 15.0),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(25.0),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${tour.arrived} / ${tour.filled}',
+                                        textAlign: TextAlign.end,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  SizedBox(width: 10),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: 0, horizontal: 15),
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFFfbb040),
+                                      borderRadius: BorderRadius.circular(20.0),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${tour.capacity - tour.filled}',
+                                        textAlign: TextAlign.end,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                ],
                               )
                             : Text(
                                 '${tour.filled} / ${tour.capacity}',
@@ -1325,7 +1353,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
                 maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   TextField(
                     controller: _tourNameController,
@@ -1922,7 +1950,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                 maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   TextField(
                     controller: _groupNameController,

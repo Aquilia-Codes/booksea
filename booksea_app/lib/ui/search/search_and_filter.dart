@@ -889,7 +889,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
                 maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   TextField(
                     controller: _tourNameController,
@@ -1486,7 +1486,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                 maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   TextField(
                     controller: _groupNameController,
@@ -1831,7 +1831,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                 maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   TextField(
                     controller: _groupNameController,

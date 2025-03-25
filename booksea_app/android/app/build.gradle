@@ -27,11 +27,11 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk 23
-        targetSdk 34
+        targetSdk 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-
+ 
     signingConfigs {
         release {
             storeFile file(RELEASE_STORE_FILE)
@@ -39,13 +39,13 @@ android {
             keyAlias RELEASE_KEY_ALIAS
             keyPassword RELEASE_KEY_PASSWORD
         }
-    }
+    } 
 
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug 
+            signingConfig = signingConfigs.release 
         }
     }
 }
@@ -56,9 +56,9 @@ flutter {
 
 dependencies {
  
-  implementation("com.google.firebase:firebase-bom:33.1.2") 
+  implementation(platform("com.google.firebase:firebase-bom:33.1.2")) 
   implementation("com.google.firebase:firebase-analytics") 
   implementation 'com.google.android.gms:play-services-auth:20.0.0'
   implementation 'com.google.android.gms:play-services-base:18.0.1'
- 
+  implementation 'com.google.firebase:firebase-messaging'
 }
