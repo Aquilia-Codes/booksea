@@ -572,9 +572,9 @@ void openTourPopup(BuildContext context, TourModel tour,
       return AlertDialog(
         content: SizedBox(
           width:
-              MediaQuery.of(context).size.width * 0.9, // Set the desired width
-          height: MediaQuery.of(context).size.height *
-              0.6, // Set the desired height
+              MediaQuery.sizeOf(context).width * 0.9, // Set the desired width
+          height:
+              MediaQuery.sizeOf(context).height * 0.6, // Set the desired height
           child: Stack(
             children: [
               TourPopup(
@@ -681,14 +681,13 @@ class _TourPopupState extends State<TourPopup> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  shape: CircleBorder(),
+              IconButton(
+                style: IconButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
                 onPressed: () => openTourDeletePopup(context, widget.tour,
                     widget.companyId, widget.boatId, widget.firestoreDatabase),
-                child: Icon(Icons.delete,
+                icon: Icon(Icons.delete,
                     color: Theme.of(context).colorScheme.error),
               ),
               Container(
@@ -727,15 +726,13 @@ class _TourPopupState extends State<TourPopup> {
                   ],
                 ),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  shape: CircleBorder(),
-                  fixedSize: Size(10, 10),
+              IconButton(
+                style: IconButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
                 onPressed: () => openTourEditPopup(context, widget.companyId,
                     widget.boatId, widget.tour, widget.firestoreDatabase),
-                child: Icon(Icons.edit,
+                icon: Icon(Icons.edit,
                     color: Theme.of(context).colorScheme.primary),
               ),
             ],
@@ -761,8 +758,8 @@ void openTourEditPopup(BuildContext context, String companyId, String boatId,
     builder: (BuildContext context) {
       return AlertDialog(
         content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.7,
+          width: MediaQuery.sizeOf(context).width * 0.9,
+          height: MediaQuery.sizeOf(context).height * 0.7,
           child: TourEditPopup(
             tour: tour,
             companyId: companyId,
@@ -886,7 +883,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
+                maxHeight: MediaQuery.sizeOf(context).height * 0.85,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -1138,7 +1135,7 @@ class _TourDeletePopupState extends State<TourDeletePopup> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.of(context).size.width * 0.9,
+      width: MediaQuery.sizeOf(context).width * 0.9,
       height: 220,
       child: Center(
         child: Column(
@@ -1239,7 +1236,7 @@ class GroupDataStream extends StatelessWidget {
           );
         }
         return Container(
-          height: MediaQuery.of(context).size.height * 0.6 - 94,
+          height: MediaQuery.sizeOf(context).height * 0.6 - 94,
           child: SingleChildScrollView(
             child: ListView.builder(
               shrinkWrap: true,
@@ -1328,8 +1325,8 @@ void openGroupAddPopup(BuildContext context, String tourId, String companyId,
     builder: (BuildContext context) {
       return AlertDialog(
         content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.7,
+          width: MediaQuery.sizeOf(context).width * 0.9,
+          height: MediaQuery.sizeOf(context).height * 0.7,
           child: GroupAddPopup(
             tourId: tourId,
             tour: tour,
@@ -1483,7 +1480,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
+                maxHeight: MediaQuery.sizeOf(context).height * 0.85,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -1676,8 +1673,8 @@ void openGroupEditPopup(
     builder: (BuildContext context) {
       return AlertDialog(
         content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.7,
+          width: MediaQuery.sizeOf(context).width * 0.9,
+          height: MediaQuery.sizeOf(context).height * 0.7,
           child: GroupEditPopup(
             group: group,
             companyId: companyId,
@@ -1828,7 +1825,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
+                maxHeight: MediaQuery.sizeOf(context).height * 0.85,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -2016,8 +2013,8 @@ void openGroupPopup(BuildContext context, GroupModel group, String companyId,
     builder: (BuildContext context) {
       return AlertDialog(
         content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.3,
+          width: MediaQuery.sizeOf(context).width * 0.9,
+          height: MediaQuery.sizeOf(context).height * 0.3,
           child: GroupPopup(
             group: group,
             companyId: companyId,
@@ -2057,31 +2054,44 @@ class GroupPopup extends StatelessWidget {
                 if (!group.hasArrived) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
+                      IconButton(
+                        style: IconButton.styleFrom(
                           backgroundColor:
                               Theme.of(context).colorScheme.onPrimary,
-                          shape: CircleBorder(),
                         ),
                         onPressed: () {
                           openGroupDeletePopup(context, group, companyId,
                               boatId, tour.id, firestoreDatabase);
                         },
-                        child: Icon(Icons.delete,
+                        icon: Icon(Icons.delete,
                             color: Theme.of(context).colorScheme.error),
                       ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
+                      Container(
+                        width: MediaQuery.of(context).size.width * 0.4,
+                        margin: EdgeInsets.only(top: 15.0),
+                        child: Text(
+                          group.groupName.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        style: IconButton.styleFrom(
                           backgroundColor:
                               Theme.of(context).colorScheme.onPrimary,
-                          shape: CircleBorder(),
                         ),
                         onPressed: () {
                           openGroupEditPopup(context, group, companyId, boatId,
                               tour.id, tour, firestoreDatabase);
                         },
-                        child: Icon(Icons.edit,
+                        icon: Icon(Icons.edit,
                             color: Theme.of(context).colorScheme.primary),
                       ),
                     ],
@@ -2251,16 +2261,16 @@ class CallButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
+    return IconButton(
+      style: IconButton.styleFrom(
         backgroundColor: Theme.of(context).colorScheme.secondary,
-        shape: CircleBorder(),
         padding: EdgeInsets.all(10),
       ),
       onPressed: () {
         launchUrl(Uri.parse('tel:$phoneNumber'));
       },
-      child: Icon(Icons.call, color: Theme.of(context).colorScheme.onPrimary),
+      icon: Icon(Icons.call,
+          size: 20, color: Theme.of(context).colorScheme.onPrimary),
     );
   }
 }
@@ -2272,17 +2282,16 @@ class MessageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
+    return IconButton(
+      style: IconButton.styleFrom(
         backgroundColor: Theme.of(context).colorScheme.secondary,
-        shape: CircleBorder(),
         padding: EdgeInsets.all(10),
       ),
       onPressed: () {
         launchUrl(Uri.parse('sms:$phoneNumber'));
       },
-      child:
-          Icon(Icons.message, color: Theme.of(context).colorScheme.onPrimary),
+      icon: Icon(Icons.message,
+          size: 20, color: Theme.of(context).colorScheme.onPrimary),
     );
   }
 }

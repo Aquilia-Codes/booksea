@@ -1146,14 +1146,13 @@ class _TourPopupState extends State<TourPopup> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  shape: CircleBorder(),
+              IconButton(
+                style: IconButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
                 onPressed: () => openTourDeletePopup(context, widget.tour,
                     widget.companyId, widget.boatId, widget.firestoreDatabase),
-                child: Icon(Icons.delete,
+                icon: Icon(Icons.delete,
                     color: Theme.of(context).colorScheme.error),
               ),
               Container(
@@ -1192,15 +1191,13 @@ class _TourPopupState extends State<TourPopup> {
                   ],
                 ),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  shape: CircleBorder(),
-                  fixedSize: Size(10, 10),
+              IconButton(
+                style: IconButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
                 onPressed: () => openTourEditPopup(context, widget.companyId,
                     widget.boatId, widget.tour, widget.firestoreDatabase),
-                child: Icon(Icons.edit,
+                icon: Icon(Icons.edit,
                     color: Theme.of(context).colorScheme.primary),
               ),
             ],
@@ -2521,31 +2518,44 @@ class GroupPopup extends StatelessWidget {
                 if (!group.hasArrived) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
+                      IconButton(
+                        style: IconButton.styleFrom(
                           backgroundColor:
                               Theme.of(context).colorScheme.onPrimary,
-                          shape: CircleBorder(),
                         ),
                         onPressed: () {
                           openGroupDeletePopup(context, group, companyId,
                               boatId, tour.id, firestoreDatabase);
                         },
-                        child: Icon(Icons.delete,
+                        icon: Icon(Icons.delete,
                             color: Theme.of(context).colorScheme.error),
                       ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
+                      Container(
+                        width: MediaQuery.of(context).size.width * 0.4,
+                        margin: EdgeInsets.only(top: 15.0),
+                        child: Text(
+                          group.groupName.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        style: IconButton.styleFrom(
                           backgroundColor:
                               Theme.of(context).colorScheme.onPrimary,
-                          shape: CircleBorder(),
                         ),
                         onPressed: () {
                           openGroupEditPopup(context, group, companyId, boatId,
                               tour.id, tour, firestoreDatabase);
                         },
-                        child: Icon(Icons.edit,
+                        icon: Icon(Icons.edit,
                             color: Theme.of(context).colorScheme.primary),
                       ),
                     ],
@@ -2553,11 +2563,6 @@ class GroupPopup extends StatelessWidget {
                 ] else ...[
                   SizedBox(height: 20),
                 ],
-                Text(group.groupName.toUpperCase(),
-                    style: TextStyle(
-                        fontSize: 35,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -2715,16 +2720,16 @@ class CallButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
+    return IconButton(
+      style: IconButton.styleFrom(
         backgroundColor: Theme.of(context).colorScheme.secondary,
-        shape: CircleBorder(),
         padding: EdgeInsets.all(10),
       ),
       onPressed: () {
         launchUrl(Uri.parse('tel:$phoneNumber'));
       },
-      child: Icon(Icons.call, color: Theme.of(context).colorScheme.onPrimary),
+      icon: Icon(Icons.call,
+          size: 20, color: Theme.of(context).colorScheme.onPrimary),
     );
   }
 }
@@ -2736,17 +2741,16 @@ class MessageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
+    return IconButton(
+      style: IconButton.styleFrom(
         backgroundColor: Theme.of(context).colorScheme.secondary,
-        shape: CircleBorder(),
         padding: EdgeInsets.all(10),
       ),
       onPressed: () {
         launchUrl(Uri.parse('sms:$phoneNumber'));
       },
-      child:
-          Icon(Icons.message, color: Theme.of(context).colorScheme.onPrimary),
+      icon: Icon(Icons.message,
+          size: 20, color: Theme.of(context).colorScheme.onPrimary),
     );
   }
 }
