@@ -13,8 +13,14 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SearchAndFilterScreen extends StatefulWidget {
-  const SearchAndFilterScreen({super.key});
+  final String? currentBoatId;
+  final Function(String) onBoatIdChanged;
 
+  const SearchAndFilterScreen({
+    super.key,
+    required this.onBoatIdChanged,
+    this.currentBoatId,
+  });
   @override
   _SearchAndFilterScreenState createState() => _SearchAndFilterScreenState();
 }
@@ -35,7 +41,7 @@ class _SearchAndFilterScreenState extends State<SearchAndFilterScreen> {
     authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     _companyId = authProvider.companyId!;
-    _boatId = authProvider.boatIds.first;
+    _boatId = widget.currentBoatId ?? authProvider.boatIds.first;
 
     // Load tour types once
     _loadTourTypes();
@@ -81,6 +87,7 @@ class _SearchAndFilterScreenState extends State<SearchAndFilterScreen> {
                     onChanged: (newValue) {
                       setState(() {
                         _boatId = newValue!;
+                        widget.onBoatIdChanged(_boatId);
                         // Reset tour types when boat changes
                         _selectedTourTypes = [];
                         _loadTourTypes(); // Reload tour types for the new boat

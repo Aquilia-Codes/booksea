@@ -17,8 +17,16 @@ class Routes {
   static final routes = <String, WidgetBuilder>{
     splash: (context) => const SplashScreen(),
     login: (context) => const GoogleLoginScreen(),
-    home: (context) => const HomeScreen(),
+    home: (context) => HomeScreen(
+          onBoatIdChanged: (String newBoatId) {},
+          currentBoatId: null,
+          selectedDate: DateTime.now(),
+          onDateChange: (DateTime date) {},
+        ),
     settings: (context) => const SettingsScreen(),
-    search: (context) => SearchAndFilterScreen(),
+    search: (context) => SearchAndFilterScreen(
+          onBoatIdChanged: (String newBoatId) {},
+          currentBoatId: null,
+        ),
   };
 }

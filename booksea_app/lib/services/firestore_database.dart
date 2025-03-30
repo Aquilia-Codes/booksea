@@ -10,6 +10,8 @@ import 'package:booksea_app/models/tour_model.dart';
 import 'package:booksea_app/models/group_model.dart';
 import 'package:booksea_app/models/type_model.dart';
 
+import 'package:booksea_app/models/log_model.dart';
+
 String documentIdFromCurrentDate() => DateTime.now().toIso8601String();
 
 /*
@@ -28,8 +30,20 @@ class FirestoreDatabase {
   FirestoreDatabase({required this.uid});
   final String uid;
 
-  // ignore: unused_field
   final _firestoreService = FirestoreService.instance;
+
+  // Private method to create logs
+  Future<void> _createLog(String message) async {
+    final user = await getUser();
+    final log = LogModel(
+      message: message,
+      timestamp: DateTime.now(),
+    );
+    await FirebaseFirestore.instance
+        .collection(FirestorePath.logs(user.companyId))
+        .doc(documentIdFromCurrentDate())
+        .set(log.toMap());
+  }
 
   // Update the user document with the gotten data,
   Future<void> setUser(UserModel user) async =>
@@ -183,6 +197,16 @@ class FirestoreDatabase {
         .collection(FirestorePath.tours(companyId, boatId))
         .doc();
     await tourRef.set(tour.toMap());
+
+    // Add log for tour creation
+    final boat = await FirebaseFirestore.instance
+        .collection(FirestorePath.boats(companyId))
+        .doc(boatId)
+        .get();
+    final boatName = boat.data()?['name'] ?? 'Unknown Boat';
+
+    await _createLog(
+        '[${user.email}], [${user.nickname}] created tour [${tour.tourType}] on boat [${boatName}] scheduled from [${tour.startTime.toDate().toString()}] to [${tour.endTime.toDate().toString()}]');
   }
 
   //update a tour, needs companyId, boatId and tourId
@@ -192,6 +216,17 @@ class FirestoreDatabase {
         .collection(FirestorePath.tours(companyId, boatId))
         .doc(tourId);
     await tourRef.update(tour.toMap());
+
+    // Add log for tour update
+    final user = await getUser();
+    final boat = await FirebaseFirestore.instance
+        .collection(FirestorePath.boats(companyId))
+        .doc(boatId)
+        .get();
+    final boatName = boat.data()?['name'] ?? 'Unknown Boat';
+
+    await _createLog(
+        '[${user.email}], [${user.nickname}] updated tour [${tour.tourType}] on boat [${boatName}] scheduled from [${tour.startTime.toDate().toString()}] to [${tour.endTime.toDate().toString()}]');
   }
 
   // delete a tour, needs companyId, boatId and tourId
@@ -200,7 +235,26 @@ class FirestoreDatabase {
     final tourRef = FirebaseFirestore.instance
         .collection(FirestorePath.tours(companyId, boatId))
         .doc(tourId);
+
+    // Get tour data before deletion for logging
+    final tourSnapshot = await tourRef.get();
+    if (!tourSnapshot.exists) {
+      throw Exception('Tour not found');
+    }
+    final Map<String, dynamic> tourData = tourSnapshot.data() ?? {};
+
     await tourRef.delete();
+
+    // Add log for tour deletion
+    final user = await getUser();
+    final boat = await FirebaseFirestore.instance
+        .collection(FirestorePath.boats(companyId))
+        .doc(boatId)
+        .get();
+    final boatName = boat.data()?['name'] ?? 'Unknown Boat';
+
+    await _createLog(
+        '[${user.email}], [${user.nickname}] deleted tour [${tourData['tourType']}] on boat [${boatName}] scheduled from [${(tourData['startTime'] as Timestamp).toDate().toString()}] to [${(tourData['endTime'] as Timestamp).toDate().toString()}]');
   }
 
   /* Group section */
@@ -218,7 +272,7 @@ class FirestoreDatabase {
 
     final tourSnapshot = await tourRef.get();
     if (tourSnapshot.exists) {
-      final tourData = tourSnapshot.data() as Map<String, dynamic>;
+      final Map<String, dynamic> tourData = tourSnapshot.data() ?? {};
       final updatedFilled = (tourData['filled'] ?? 0) + group.adultCount;
 
       // Check if the new filled count exceeds the tour capacity
@@ -234,6 +288,17 @@ class FirestoreDatabase {
           'filled': updatedFilled,
           'price': updatedPrice,
         });
+
+        // Add log for group creation
+        final user = await getUser();
+        final boat = await FirebaseFirestore.instance
+            .collection(FirestorePath.boats(companyId))
+            .doc(boatId)
+            .get();
+        final boatName = boat.data()?['name'] ?? 'Unknown Boat';
+
+        await _createLog(
+            '[${user.email}], [${user.nickname}] created group [${group.groupName}] for tour [${tourData['tourType']}] on boat [${boatName}] scheduled from [${(tourData['startTime'] as Timestamp).toDate().toString()}] to [${(tourData['endTime'] as Timestamp).toDate().toString()}]');
 
         return GroupModel.fromMap(group.toMap(), groupRef.id);
       } else {
@@ -275,6 +340,22 @@ class FirestoreDatabase {
         'filled': newFilled,
         'price': updatedPrice,
       });
+
+      // Add log for group update
+      final user = await getUser();
+      final boat = await FirebaseFirestore.instance
+          .collection(FirestorePath.boats(companyId))
+          .doc(boatId)
+          .get();
+      final boatName = boat.data()?['name'] ?? 'Unknown Boat';
+      final tour = await FirebaseFirestore.instance
+          .collection(FirestorePath.tours(companyId, boatId))
+          .doc(tourId)
+          .get();
+      final tourData = tour.data() as Map<String, dynamic>;
+
+      await _createLog(
+          '[${user.email}], [${user.nickname}] updated group [${group.groupName}] for tour [${tourData['tourType']}] on boat [${boatName}] scheduled from [${(tourData['startTime'] as Timestamp).toDate().toString()}] to [${(tourData['endTime'] as Timestamp).toDate().toString()}]');
     }
   }
 
@@ -291,6 +372,18 @@ class FirestoreDatabase {
       final adultCount = groupData['adultCount'] ?? 0;
       final groupPrice = groupData['price'] ?? 0.0;
 
+      // Get tour data before deletion for logging
+      final tour = await FirebaseFirestore.instance
+          .collection(FirestorePath.tours(companyId, boatId))
+          .doc(tourId)
+          .get();
+      final tourData = tour.data() as Map<String, dynamic>;
+      final boat = await FirebaseFirestore.instance
+          .collection(FirestorePath.boats(companyId))
+          .doc(boatId)
+          .get();
+      final boatName = boat.data()?['name'] ?? 'Unknown Boat';
+
       await groupRef.delete();
 
       final tourRef = FirebaseFirestore.instance
@@ -299,9 +392,8 @@ class FirestoreDatabase {
 
       final tourSnapshot = await tourRef.get();
       if (tourSnapshot.exists) {
-        final tourData = tourSnapshot.data() as Map<String, dynamic>;
-        final currentFilled = tourData['filled'] ?? 0;
-        final currentPrice = tourData['price'] ?? 0.0;
+        final currentFilled = tourSnapshot.data()?['filled'] ?? 0;
+        final currentPrice = tourSnapshot.data()?['price'] ?? 0.0;
 
         final newFilled = currentFilled - adultCount;
         final updatedPrice = currentPrice - groupPrice;
@@ -310,6 +402,11 @@ class FirestoreDatabase {
           'filled': newFilled,
           'price': updatedPrice,
         });
+
+        // Add log for group deletion
+        final user = await getUser();
+        await _createLog(
+            '[${user.email}], [${user.nickname}] deleted group [${groupData['groupName']}] for tour [${tourData['tourType']}] on boat [${boatName}] scheduled from [${(tourData['startTime'] as Timestamp).toDate().toString()}] to [${(tourData['endTime'] as Timestamp).toDate().toString()}]');
       }
     }
   }

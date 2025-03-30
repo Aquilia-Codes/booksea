@@ -14,7 +14,18 @@ import 'package:booksea_app/ui/home/qr_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String? currentBoatId;
+  final Function(String) onBoatIdChanged;
+  final DateTime selectedDate;
+  final Function(DateTime) onDateChange;
+
+  const HomeScreen({
+    super.key,
+    required this.onBoatIdChanged,
+    this.currentBoatId,
+    required this.selectedDate,
+    required this.onDateChange,
+  });
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -22,16 +33,22 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late DateTime selectedDate;
-  late String boatId;
   late String companyId;
 
   @override
   void initState() {
     super.initState();
-    selectedDate = DateTime.now();
+    selectedDate = widget.selectedDate;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    boatId = authProvider.boatIds.first;
     companyId = authProvider.companyId!;
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedDate != widget.selectedDate) {
+      selectedDate = widget.selectedDate;
+    }
   }
 
   @override
@@ -45,21 +62,20 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(160),
         child: AppBar(
-          flexibleSpace: SizedBox(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 40.0),
-              child: Material(
-                elevation: 2.0,
-                shadowColor: Theme.of(context).colorScheme.tertiaryContainer,
-                child: InfiniteDatePicker(
-                  initialDate: selectedDate,
-                  onDateChange: (date) {
-                    setState(() {
-                      selectedDate = date;
-                    });
-                  },
-                ),
-              ),
+          flexibleSpace: Material(
+            elevation: 2.0,
+            shadowColor: Theme.of(context).colorScheme.tertiaryContainer,
+            child: InfiniteDatePicker(
+              initialDate: selectedDate,
+              onDateChange: (date) {
+                setState(() {
+                  selectedDate = date;
+                });
+                widget.onDateChange(date);
+              },
+              boatIds: authProvider.boatIds,
+              currentBoatId: widget.currentBoatId ?? authProvider.boatIds.first,
+              onBoatIdChanged: widget.onBoatIdChanged,
             ),
           ),
         ),
@@ -77,63 +93,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TourDataStream(
             companyId: companyId,
-            boatId: boatId,
+            boatId: widget.currentBoatId ?? authProvider.boatIds.first,
             selectedDate: selectedDate,
             firestoreDatabase: firestoreDatabase,
-          ),
-          if (authProvider.boatIds.length > 1)
-            Positioned(
-              bottom: 10,
-              left: 15,
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.75,
-                child: DropdownButtonFormField<String>(
-                  value: boatId,
-                  items: authProvider.boatIds.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      boatId = newValue!;
-                    });
-                  },
-                  hint: Text('Select an option'),
-                  decoration: InputDecoration(
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color:
-                              Theme.of(context).colorScheme.secondaryContainer),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color:
-                              Theme.of(context).colorScheme.secondaryContainer),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          Positioned(
-            bottom: 7,
-            right: authProvider.boatIds.length < 2
-                ? (MediaQuery.of(context).size.width / 2) - 28
-                : 15,
-            child: FloatingActionButton(
-              heroTag: 'add_tour_fab',
-              onPressed: () async {
-                showTourSelectionModal(context, companyId, firestoreDatabase,
-                    authProvider, selectedDate, boatId);
-              },
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              elevation: 3.0,
-              child: Icon(
-                Icons.add,
-                color: Colors.white,
-              ),
-            ),
           ),
         ],
       ),
@@ -144,9 +106,18 @@ class _HomeScreenState extends State<HomeScreen> {
 class InfiniteDatePicker extends StatefulWidget {
   final DateTime initialDate;
   final Function(DateTime) onDateChange;
+  final List<String> boatIds;
+  final String currentBoatId;
+  final Function(String) onBoatIdChanged;
 
-  const InfiniteDatePicker(
-      {super.key, required this.initialDate, required this.onDateChange});
+  const InfiniteDatePicker({
+    super.key,
+    required this.initialDate,
+    required this.onDateChange,
+    required this.boatIds,
+    required this.currentBoatId,
+    required this.onBoatIdChanged,
+  });
 
   @override
   InfiniteDatePickerState createState() => InfiniteDatePickerState();
@@ -158,10 +129,32 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
   final DateTime endDate = DateTime(2026, 2, 1);
   late ScrollController _scrollController;
 
+  void _scrollToDate(DateTime date) {
+    final daysFromStart = date.difference(startDate).inDays;
+    final itemWidth = 78.9; // Width of each date item
+    final screenWidth = MediaQuery.of(context).size.width;
+    final targetOffset = (daysFromStart * itemWidth) -
+        (screenWidth / 2.6); // Changed from /2 to /3 to move more left
+
+    _scrollController.animateTo(
+      targetOffset.clamp(0, _scrollController.position.maxScrollExtent),
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    selectedDate = widget.initialDate;
+    // Set today's date as selected if it's within the date range
+    final today = DateTime.now();
+    if (today.isBefore(startDate)) {
+      selectedDate = startDate;
+    } else if (today.isAfter(endDate)) {
+      selectedDate = endDate;
+    } else {
+      selectedDate = DateTime(today.year, today.month, today.day);
+    }
     _scrollController = ScrollController(
       initialScrollOffset: _calculateInitialOffset(),
     );
@@ -172,7 +165,7 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
     if (today.isBefore(startDate)) {
       return 0.0;
     }
-    final daysFromStart = today.difference(startDate).inDays;
+    final daysFromStart = today.difference(startDate).inDays - 2;
     return daysFromStart * 78.9; // Assuming each item is 78.9 pixels wide
   }
 
@@ -186,7 +179,11 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Positioned.fill(
+        Positioned(
+          top: 60,
+          left: 0,
+          right: 0,
+          bottom: 0,
           child: Image.asset(
             'assets/Wave.png',
             fit: BoxFit.cover,
@@ -194,7 +191,45 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
         ),
         Column(
           children: [
-            SizedBox(height: 25),
+            if (widget.boatIds.length > 1)
+              SizedBox(height: 30)
+            else
+              SizedBox(height: 45),
+            if (widget.boatIds.length > 1)
+              Container(
+                alignment: Alignment.center,
+                child: IntrinsicWidth(
+                  child: DropdownButton<String>(
+                    value: widget.currentBoatId,
+                    isExpanded: false,
+                    isDense: true,
+                    underline: Container(
+                      height: 0,
+                    ),
+                    icon: Icon(
+                      Icons.arrow_drop_down,
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                    alignment: Alignment.center,
+                    items: widget.boatIds.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value,
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    Theme.of(context).colorScheme.secondary)),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      if (newValue != null) {
+                        widget.onBoatIdChanged(newValue);
+                      }
+                    },
+                  ),
+                ),
+              ),
+            if (widget.boatIds.length > 1) SizedBox(height: 15),
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
@@ -202,12 +237,16 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
                 itemCount: endDate.difference(startDate).inDays + 1,
                 itemBuilder: (context, index) {
                   final date = startDate.add(Duration(days: index));
+                  final isSelected = selectedDate.year == date.year &&
+                      selectedDate.month == date.month &&
+                      selectedDate.day == date.day;
                   return GestureDetector(
                     onTap: () {
                       setState(() {
                         selectedDate = date;
                       });
                       widget.onDateChange(date);
+                      _scrollToDate(date);
                     },
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -215,14 +254,17 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
                         Container(
                           width: 55,
                           margin: EdgeInsets.only(
-                              left: 12, right: 12, top: 8, bottom: 7),
+                              left: 12,
+                              right: 12,
+                              top: isSelected ? 11 : 15,
+                              bottom: isSelected ? 4 : 4),
                           decoration: BoxDecoration(
                             color:
                                 Theme.of(context).colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(30),
                             boxShadow: [
                               BoxShadow(
-                                color: selectedDate == date
+                                color: isSelected
                                     ? Theme.of(context)
                                         .colorScheme
                                         .primaryContainer
@@ -233,11 +275,11 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
                             ],
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.only(
+                            padding: EdgeInsets.only(
                                 left: 10.0,
                                 right: 10.0,
-                                top: 15.0,
-                                bottom: 15.0),
+                                top: isSelected ? 14 : 10,
+                                bottom: isSelected ? 14 : 10),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -246,43 +288,45 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
                                   style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
-                                      color: selectedDate == date
+                                      color: isSelected
                                           ? Theme.of(context)
                                               .colorScheme
                                               .primary
-                                          : DateTime.now().day == date.day &&
+                                          : DateTime.now().year == date.year &&
                                                   DateTime.now().month ==
                                                       date.month &&
-                                                  DateTime.now().year ==
-                                                      date.year
+                                                  DateTime.now().day == date.day
                                               ? Theme.of(context)
                                                   .colorScheme
                                                   .primary
-                                              : Theme.of(context)
-                                                  .colorScheme
-                                                  .secondary
-                                                  .withOpacity(0.5)),
+                                              : date.isBefore(DateTime.now())
+                                                  ? Colors.grey
+                                                  : Theme.of(context)
+                                                      .colorScheme
+                                                      .secondary
+                                                      .withOpacity(0.5)),
                                 ),
                                 Text(
                                   _getMonthName(date.month),
                                   style: TextStyle(
                                       fontSize: 12,
-                                      color: selectedDate == date
+                                      color: isSelected
                                           ? Theme.of(context)
                                               .colorScheme
                                               .primary
-                                          : DateTime.now().day == date.day &&
+                                          : DateTime.now().year == date.year &&
                                                   DateTime.now().month ==
                                                       date.month &&
-                                                  DateTime.now().year ==
-                                                      date.year
+                                                  DateTime.now().day == date.day
                                               ? Theme.of(context)
                                                   .colorScheme
                                                   .primary
-                                              : Theme.of(context)
-                                                  .colorScheme
-                                                  .secondary
-                                                  .withOpacity(0.5)),
+                                              : date.isBefore(DateTime.now())
+                                                  ? Colors.grey
+                                                  : Theme.of(context)
+                                                      .colorScheme
+                                                      .secondary
+                                                      .withOpacity(0.5)),
                                 ),
                               ],
                             ),
@@ -292,18 +336,6 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
                     ),
                   );
                 },
-              ),
-            ), // Add space between selected date and scrollable dates
-            Container(
-              margin: EdgeInsets.only(bottom: 2),
-              child: Center(
-                child: Text(
-                  '${selectedDate.day}.${selectedDate.month}.${selectedDate.year}',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.tertiary),
-                ),
               ),
             ),
           ],
@@ -331,14 +363,14 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
   }
 }
 
-class TourSelectionModal extends StatefulWidget {
+class TourAddModal extends StatefulWidget {
   final String companyId;
   final FirestoreDatabase firestoreDatabase;
   final AuthProvider authProvider;
   final DateTime selectedDate;
   final String boatId;
 
-  const TourSelectionModal({
+  const TourAddModal({
     super.key,
     required this.companyId,
     required this.firestoreDatabase,
@@ -348,10 +380,10 @@ class TourSelectionModal extends StatefulWidget {
   });
 
   @override
-  _TourSelectionModalState createState() => _TourSelectionModalState();
+  _TourAddModalState createState() => _TourAddModalState();
 }
 
-class _TourSelectionModalState extends State<TourSelectionModal> {
+class _TourAddModalState extends State<TourAddModal> {
   late Future<Map<String, dynamic>> _tourTypesAndBoatInfoFuture;
   String? _selectedTourType;
   final TextEditingController _capacityController = TextEditingController();
@@ -718,7 +750,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
   }
 }
 
-void showTourSelectionModal(
+void showTourAddModal(
     BuildContext context,
     String companyId,
     FirestoreDatabase firestoreDatabase,
@@ -730,7 +762,7 @@ void showTourSelectionModal(
     isDismissible: true,
     isScrollControlled: true,
     builder: (BuildContext context) {
-      return TourSelectionModal(
+      return TourAddModal(
         companyId: companyId,
         firestoreDatabase: firestoreDatabase,
         authProvider: authProvider,
@@ -822,8 +854,6 @@ class TourDataStream extends StatelessWidget {
                                   firestoreDatabase: firestoreDatabase,
                                   companyId: companyId,
                                   boatId: boatId),
-                              if (index == tourSnapshot.data!.length - 1)
-                                const SizedBox(height: 100),
                             ],
                           );
                         },
@@ -886,7 +916,7 @@ class TourCard extends StatelessWidget {
                         CrossAxisAlignment.center, // Centering vertically
                     children: [
                       Expanded(
-                          flex: 2,
+                          flex: tour.arrived > 0 ? 1 : 2,
                           child: Text(tour.tourName.toUpperCase(),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
