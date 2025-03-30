@@ -115,8 +115,6 @@ class AuthProvider extends ChangeNotifier {
             userData?['boatIds'] ?? []); // Set the boat IDs as List<String>
 
         // Add logging to check the fetched data
-        print('Fetched companyId: $_companyId');
-        print('Fetched boatIds: $_boatIds');
 
         final firestoreDatabase = FirestoreDatabase(uid: firebaseUser.uid);
 
@@ -165,8 +163,8 @@ class AuthProvider extends ChangeNotifier {
       }
 
       return userCredential;
-    } on Exception catch (e) {
-      print('Exception: $e');
+    } on Exception {
+      //print('Exception: $e');
     }
   }
 
@@ -181,11 +179,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future signOut() async {
-    print('active user: ${_auth.currentUser}');
     _auth.signOut();
     _status = Status.Unauthenticated;
     notifyListeners();
-    print('active user: ${_auth.currentUser}');
     return Future.delayed(Duration.zero);
   }
 

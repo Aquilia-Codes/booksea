@@ -1232,7 +1232,6 @@ class GroupDataStream extends StatelessWidget {
     return StreamBuilder<List<GroupModel>>(
       stream: firestoreDatabase.getGroups(companyId, boatId, tour.id),
       builder: (context, snapshot) {
-        print(snapshot.data);
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
             child: Text('Add Groups!',
@@ -1242,6 +1241,7 @@ class GroupDataStream extends StatelessWidget {
                     color: Theme.of(context).colorScheme.primary)),
           );
         }
+        // ignore: sized_box_for_whitespace
         return Container(
           height: MediaQuery.sizeOf(context).height * 0.6 - 94,
           child: SingleChildScrollView(
@@ -1715,6 +1715,7 @@ class GroupEditPopup extends StatefulWidget {
   });
 
   @override
+  // ignore: library_private_types_in_public_api
   _GroupEditPopupState createState() => _GroupEditPopupState();
 }
 

@@ -180,7 +180,7 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
     return Stack(
       children: [
         Positioned(
-          top: 60,
+          top: widget.boatIds.length > 1 ? 60 : 45,
           left: 0,
           right: 0,
           bottom: 0,
@@ -1719,14 +1719,11 @@ class GroupDataStream extends StatelessWidget {
     return StreamBuilder<List<GroupModel>>(
       stream: firestoreDatabase.getGroups(companyId, boatId, tour.id),
       builder: (context, snapshot) {
-        print(snapshot.data);
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
-            child: Text('Add Groups!',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary)),
+            child: Text(
+              ' ',
+            ),
           );
         }
         return Container(
@@ -1781,8 +1778,7 @@ class GroupCard extends StatelessWidget {
           context, group, companyId, boatId, tour, firestoreDatabase),
       child: Card(
         color: cardColor,
-        margin:
-            EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0, bottom: 10.0),
+        margin: EdgeInsets.only(left: 5.0, right: 5.0, top: 10.0, bottom: 5.0),
         child: Padding(
           padding: const EdgeInsets.only(
               left: 15.0, right: 15.0, top: 25.0, bottom: 25.0),

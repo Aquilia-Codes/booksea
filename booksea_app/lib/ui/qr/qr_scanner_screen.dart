@@ -5,7 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 
 class QRScannerScreen extends StatelessWidget {
-  QRScannerScreen({
+  const QRScannerScreen({
     super.key,
   });
 
@@ -49,11 +49,6 @@ class QRScannerScreen extends StatelessWidget {
                     final boatId = parts[1].replaceAll('_', ' ');
                     final tourId = parts[2];
                     final groupId = parts[3];
-                    print(companyId);
-                    print(boatId);
-                    print(tourId);
-                    print(groupId);
-                    print(code);
 
                     firestoreDatabase
                         .getGroup(companyId, boatId, tourId, groupId)

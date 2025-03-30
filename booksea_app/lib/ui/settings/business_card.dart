@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class BusinessCard extends StatelessWidget {
   final UserModel user;
 
-  BusinessCard({required this.user});
+  const BusinessCard({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {

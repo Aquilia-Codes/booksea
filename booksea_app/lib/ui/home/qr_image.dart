@@ -13,13 +13,7 @@ class QRImage extends StatelessWidget {
   final TourModel tour;
   final ScreenshotController screenshotController = ScreenshotController();
 
-  QRImage(this.group, this.companyId, this.boatId, this.tour, {super.key}) {
-    // Print the group, companyId, boatId, tour, and QR data
-    print(
-        'Group: ${group.groupName}, Company ID: $companyId, Boat ID: $boatId, Tour ID: ${tour.id}');
-    print(
-        'QR Data: $companyId/${boatId.replaceAll(' ', '_')}/${tour.id}/${group.id}');
-  }
+  QRImage(this.group, this.companyId, this.boatId, this.tour, {super.key});
 
   @override
   Widget build(BuildContext context) {

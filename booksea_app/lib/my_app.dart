@@ -100,9 +100,6 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return Consumer2<ThemeProvider, AuthProvider>(
       builder: (_, themeProviderRef, authProviderRef, __) {
-        print(
-            'Current theme mode: ${themeProviderRef.isDarkModeOn ? "Dark" : "Light"}'); // Debug print
-
         // Ensure screens have the latest boatId
         _initializeScreens();
 

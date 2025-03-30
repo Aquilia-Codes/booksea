@@ -60,16 +60,6 @@ class SettingsScreen extends StatelessWidget {
                     child: StreamBuilder<UserModel>(
                       stream: user,
                       builder: (context, snapshot) {
-                        print(snapshot.data?.email);
-                        print(snapshot.data?.nickname);
-                        print(snapshot.data?.provision);
-                        print(snapshot.data?.hasAccess);
-                        print(snapshot.data?.isAdmin);
-                        print(snapshot.data?.isOwner);
-                        print(snapshot.data?.companyId);
-                        print(snapshot.data?.boatIds);
-                        print(snapshot.data?.uid);
-
                         if (snapshot.hasData) {
                           return Column(
                             children: [
