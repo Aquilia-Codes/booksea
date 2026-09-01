@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompanyStatus {
+  active
+  inactive
+  suspended
+}
+
+enum PaymentStatus {
+  unpaid
+  partial
+  paid
+}
+
+model Tier {
+  name             String    @id
+  maxBoats         Int       @map("max_boats")
+  seats            Int
+  additionalSeats  Int       @default(0) @map("additional_seats")
+  companies        Company[]
+
+  @@map("tiers")
+}
+
+model Company {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  companyCode String        @unique @map("company_code")
+  status      CompanyStatus @default(active)
+  tierName    String        @map("tier_name")
+  tier        Tier          @relation(fields: [tierName], references: [name])
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  users       User[]
+  boats       Boat[]
+
+  @@map("companies")
+}
+
+model User {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  googleSub    String?       @unique @map("google_sub")
+  email        String        @unique
+  nickname     String        @default("")
+  phoneNumber  String?       @map("phone_number")
+  companyId    String?       @map("company_id") @db.Uuid
+  company      Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  hasAccess    Boolean       @default(false) @map("has_access")
+  isAdmin      Boolean       @default(false) @map("is_admin")
+  isOwner      Boolean       @default(false) @map("is_owner")
+  provision    Decimal       @default(0) @db.Decimal(5, 2)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  boats         UserBoat[]
+  bookedGroups  BookingGroup[]
+  refreshTokens RefreshToken[]
+
+  @@index([companyId])
+  @@map("users")
+}
+
+// Not in the original Firestore-derived schema - needed so POST /auth/logout
+// can actually revoke a refresh token instead of only trusting its expiry.
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Boat {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String     @map("company_id") @db.Uuid
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  capacity  Int
+  tourTypes TourType[]
+  tours     Tour[]
+  users     UserBoat[]
+
+  @@unique([companyId, name])
+  @@map("boats")
+}
+
+model UserBoat {
+  userId String @map("user_id") @db.Uuid
+  boatId String @map("boat_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boat   Boat   @relation(fields: [boatId], references: [id], onDelete: Cascade)
+
+  @@id([userId, boatId])
+  @@map("user_boats")
+}
+
+model TourType {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boatId         String   @map("boat_id") @db.Uuid
+  boat           Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  typeName       String   @map("type_name")
+  pricePerAdult  Decimal  @default(0) @map("price_per_adult") @db.Decimal(10, 2)
+  pricePerChild  Decimal  @default(0) @map("price_per_child") @db.Decimal(10, 2)
+  startTime      DateTime @map("start_time") @db.Time
+  endTime        DateTime @map("end_time") @db.Time
+  typeImage      Int      @default(0) @map("type_image")
+  options        String[] @default([])
+  tours          Tour[]
+
+  @@unique([boatId, typeName])
+  @@map("tour_types")
+}
+
+// filled/arrived/price are NOT stored here - see the `tour_totals` raw SQL
+// view created in migration.sql, queried via $queryRaw. Storing them as
+// hand-maintained counters was the root cause of 3 known bugs in the
+// Firestore version (see docs/migration-notes.md).
+model Tour {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boatId      String        @map("boat_id") @db.Uuid
+  boat        Boat          @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  tourTypeId  String?       @map("tour_type_id") @db.Uuid
+  tourType    TourType?     @relation(fields: [tourTypeId], references: [id], onDelete: SetNull)
+  tourName    String        @map("tour_name")
+  typeImage   Int           @default(0) @map("type_image")
+  startTime   DateTime      @map("start_time") @db.Timestamptz
+  endTime     DateTime      @map("end_time") @db.Timestamptz
+  capacity    Int
+  isBooked    Boolean       @default(false) @map("is_booked")
+  note        String        @default("")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  groups      BookingGroup[]
+
+  @@index([boatId, startTime, endTime])
+  @@map("tours")
+}
+
+model BookingGroup {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tourId          String        @map("tour_id") @db.Uuid
+  tour            Tour          @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  bookerId        String?       @map("booker_id") @db.Uuid
+  booker          User?         @relation(fields: [bookerId], references: [id], onDelete: SetNull)
+  groupName       String        @map("group_name")
+  adultCount      Int           @default(0) @map("adult_count")
+  childCount      Int           @default(0) @map("child_count")
+  price           Decimal       @default(0) @db.Decimal(10, 2)
+  paymentStatus   PaymentStatus @default(unpaid) @map("payment_status")
+  mobileNumber    String        @default("") @map("mobile_number")
+  countryCode     String        @default("") @map("country_code")
+  countryDialCode String        @default("") @map("country_dial_code")
+  hasArrived      Boolean       @default(false) @map("has_arrived")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([tourId])
+  @@index([bookerId])
+  @@map("booking_groups")
+}
