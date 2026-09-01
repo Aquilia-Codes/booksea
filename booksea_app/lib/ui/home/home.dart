@@ -1,7 +1,6 @@
 //TODO make all loads happen better
 import 'dart:async';
 import 'package:booksea_app/models/group_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -414,20 +413,20 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
         tourName: _tourNameController.text,
         tourType: _selectedTourType!,
         capacity: int.tryParse(_capacityController.text) ?? 0,
-        startTime: Timestamp.fromDate(DateTime(
+        startTime: DateTime(
           selectedDate.year,
           selectedDate.month,
           selectedDate.day,
           startTime!.hour,
           startTime!.minute,
-        )),
-        endTime: Timestamp.fromDate(DateTime(
+        ),
+        endTime: DateTime(
           endDate.year,
           endDate.month,
           endDate.day,
           endTime!.hour,
           endTime!.minute,
-        )),
+        ),
         note: _notesController.text,
         typeImage: types
             .firstWhere((type) => type.typeName == _selectedTourType!)
@@ -966,7 +965,7 @@ class TourCard extends StatelessWidget {
                   height: 30, // Set a fixed height for the row
                   child: Center(
                       child: Text(
-                          '${tour.startTime.toDate().hour}:${tour.startTime.toDate().minute.toString().padLeft(2, '0')} - ${tour.endTime.toDate().hour}:${tour.endTime.toDate().minute.toString().padLeft(2, '0')}',
+                          '${tour.startTime.hour}:${tour.startTime.minute.toString().padLeft(2, '0')} - ${tour.endTime.hour}:${tour.endTime.minute.toString().padLeft(2, '0')}',
                           style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -978,21 +977,21 @@ class TourCard extends StatelessWidget {
                   child: Center(
                     child: Text(
                         tour.startTime
-                                    .toDate()
+                                    
                                     .toLocal()
                                     .toString()
                                     .split(' ')[0] ==
                                 tour.endTime
-                                    .toDate()
+                                    
                                     .toLocal()
                                     .toString()
                                     .split(' ')[0]
                             ? tour.startTime
-                                .toDate()
+                                
                                 .toLocal()
                                 .toString()
                                 .split(' ')[0]
-                            : '${tour.startTime.toDate().day}.${tour.startTime.toDate().month}.${tour.startTime.toDate().year}. - ${tour.endTime.toDate().day}.${tour.endTime.toDate().month}.${tour.endTime.toDate().year}.',
+                            : '${tour.startTime.day}.${tour.startTime.month}.${tour.startTime.year}. - ${tour.endTime.day}.${tour.endTime.month}.${tour.endTime.year}.',
                         style: TextStyle(
                             fontSize: 16,
                             color: Theme.of(context).colorScheme.secondary)),
@@ -1171,14 +1170,14 @@ class _TourPopupState extends State<TourPopup> {
                       ),
                     ),
                     Text(
-                        widget.tour.startTime.toDate().day ==
-                                    widget.tour.endTime.toDate().day &&
-                                widget.tour.startTime.toDate().month ==
-                                    widget.tour.endTime.toDate().month &&
-                                widget.tour.startTime.toDate().year ==
-                                    widget.tour.endTime.toDate().year
-                            ? '${widget.tour.startTime.toDate().hour}:${widget.tour.startTime.toDate().minute.toString().padLeft(2, '0')} - ${widget.tour.endTime.toDate().hour}:${widget.tour.endTime.toDate().minute.toString().padLeft(2, '0')}'
-                            : '${widget.tour.startTime.toDate().day}.${widget.tour.startTime.toDate().month}. - ${widget.tour.endTime.toDate().day}.${widget.tour.endTime.toDate().month}.',
+                        widget.tour.startTime.day ==
+                                    widget.tour.endTime.day &&
+                                widget.tour.startTime.month ==
+                                    widget.tour.endTime.month &&
+                                widget.tour.startTime.year ==
+                                    widget.tour.endTime.year
+                            ? '${widget.tour.startTime.hour}:${widget.tour.startTime.minute.toString().padLeft(2, '0')} - ${widget.tour.endTime.hour}:${widget.tour.endTime.minute.toString().padLeft(2, '0')}'
+                            : '${widget.tour.startTime.day}.${widget.tour.startTime.month}. - ${widget.tour.endTime.day}.${widget.tour.endTime.month}.',
                         style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -1273,16 +1272,16 @@ class _TourEditPopupState extends State<TourEditPopup> {
     // Initialize controllers
     _tourNameController = TextEditingController(text: widget.tour.tourName);
     _startTimeController =
-        TextEditingController(text: widget.tour.startTime.toDate().toString());
+        TextEditingController(text: widget.tour.startTime.toString());
     _endTimeController =
-        TextEditingController(text: widget.tour.endTime.toDate().toString());
+        TextEditingController(text: widget.tour.endTime.toString());
     _capacityController =
         TextEditingController(text: widget.tour.capacity.toString());
     _noteController = TextEditingController(text: widget.tour.note);
 
     // Initialize date and time values from the tour
-    startDate = widget.tour.startTime.toDate();
-    endDate = widget.tour.endTime.toDate();
+    startDate = widget.tour.startTime;
+    endDate = widget.tour.endTime;
     startTime = TimeOfDay.fromDateTime(startDate);
     endTime = TimeOfDay.fromDateTime(endDate);
 
@@ -1307,20 +1306,20 @@ class _TourEditPopupState extends State<TourEditPopup> {
       final updatedTour = TourModel(
         id: widget.tour.id,
         tourName: _tourNameController.text,
-        startTime: Timestamp.fromDate(DateTime(
+        startTime: DateTime(
           startDate.year,
           startDate.month,
           startDate.day,
           startTime.hour,
           startTime.minute,
-        )),
-        endTime: Timestamp.fromDate(DateTime(
+        ),
+        endTime: DateTime(
           endDate.year,
           endDate.month,
           endDate.day,
           endTime.hour,
           endTime.minute,
-        )),
+        ),
         capacity: int.parse(_capacityController.text),
         filled: widget.tour.filled,
         tourType: widget.tour.tourType,

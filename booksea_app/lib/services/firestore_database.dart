@@ -139,10 +139,10 @@ class FirestoreDatabase {
         .map((snapshot) => snapshot.docs
             .map((doc) => TourModel.fromMap(doc.data(), doc.id))
             .where((tour) =>
-                (tour.startTime.toDate().isBefore(endTime) ||
-                    tour.startTime.toDate().isAtSameMomentAs(endTime)) &&
-                (tour.endTime.toDate().isAfter(startTime) ||
-                    tour.endTime.toDate().isAtSameMomentAs(startTime)))
+                (tour.startTime.isBefore(endTime) ||
+                    tour.startTime.isAtSameMomentAs(endTime)) &&
+                (tour.endTime.isAfter(startTime) ||
+                    tour.endTime.isAtSameMomentAs(startTime)))
             .toList());
   }
 
@@ -150,8 +150,8 @@ class FirestoreDatabase {
   Future<void> createTour(
       String companyId, String boatId, TourModel tour) async {
     // Extend the date range to one month before and after
-    final startTime = tour.startTime.toDate().subtract(Duration(days: 30));
-    final endTime = tour.endTime.toDate().add(Duration(days: 30));
+    final startTime = tour.startTime.subtract(Duration(days: 30));
+    final endTime = tour.endTime.add(Duration(days: 30));
     final user = await getUser();
 
     final existingTours = await getTours(companyId, boatId, startTime, endTime);
@@ -160,12 +160,12 @@ class FirestoreDatabase {
     print('User: ${user.uid}');
 
     // Convert Timestamps to DateTime for easier comparison
-    final newTourStart = tour.startTime.toDate();
-    final newTourEnd = tour.endTime.toDate();
+    final newTourStart = tour.startTime;
+    final newTourEnd = tour.endTime;
 
     for (var existingTour in existingTours) {
-      final existingTourStart = existingTour.startTime.toDate();
-      final existingTourEnd = existingTour.endTime.toDate();
+      final existingTourStart = existingTour.startTime;
+      final existingTourEnd = existingTour.endTime;
 
       // Check for any overlap between tours
       // This handles cases like:
@@ -428,8 +428,8 @@ class FirestoreDatabase {
     await for (final tours
         in getToursStream(companyId, boatId, startTime, endTime)) {
       final filteredTours = tours.where((tour) {
-        return (tour.startTime.toDate().isAfter(startTime) &&
-            tour.endTime.toDate().isBefore(endTime));
+        return (tour.startTime.isAfter(startTime) &&
+            tour.endTime.isBefore(endTime));
       }).toList();
       yield filteredTours
           .where((tour) =>

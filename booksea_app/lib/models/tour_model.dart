@@ -1,9 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class TourModel {
   final String id;
-  final Timestamp startTime;
-  final Timestamp endTime;
+  final DateTime startTime;
+  final DateTime endTime;
   final String
       tourName; //sets the tour name the same as the boat name + type name
   final String tourType;
@@ -34,12 +32,8 @@ class TourModel {
   factory TourModel.fromMap(Map<String, dynamic> data, String documentId) {
     return TourModel(
       id: documentId,
-      startTime: (data['startTime'] is Timestamp)
-          ? data['startTime'] as Timestamp
-          : Timestamp.fromDate(DateTime.parse(data['startTime'])),
-      endTime: (data['endTime'] is Timestamp)
-          ? data['endTime'] as Timestamp
-          : Timestamp.fromDate(DateTime.parse(data['endTime'])),
+      startTime: DateTime.parse(data['startTime']),
+      endTime: DateTime.parse(data['endTime']),
       tourName: data['tourName'],
       tourType: data['tourType'],
       typeImage: data['typeImage'],
@@ -54,14 +48,15 @@ class TourModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'startTime': startTime,
-      'endTime': endTime,
+      'startTime': startTime.toIso8601String(),
+      'endTime': endTime.toIso8601String(),
       'tourName': tourName,
       'tourType': tourType,
       'typeImage': typeImage,
       'capacity': capacity,
       'filled': filled,
       'arrived': arrived,
+      'price': price,
       'isBooked': isBooked,
       'note': note,
     };

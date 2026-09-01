@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class TypeModel {
   final String
       typeName; //sets the tour name the same as the boat name + type name
@@ -29,12 +27,11 @@ class TypeModel {
       pricePerChild: (data['pricePerChild'] is double)
           ? data['pricePerChild']
           : double.parse(data['pricePerChild'].toString()),
-      startTime: (data['startTime'] is Timestamp)
-          ? (data['startTime'] as Timestamp).toDate()
-          : DateTime.parse(data['startTime']),
-      endTime: (data['endTime'] is Timestamp)
-          ? (data['endTime'] as Timestamp).toDate()
-          : DateTime.parse(data['endTime']),
+      // The API sends these as a time-of-day-only string ("HH:mm:ss"), not a
+      // full date - the date component here is a placeholder, only the hour
+      // and minute are ever used (see TimeOfDay.fromDateTime call sites).
+      startTime: DateTime.parse('1970-01-01T${data['startTime']}'),
+      endTime: DateTime.parse('1970-01-01T${data['endTime']}'),
       typeImage: data['typeImage'],
       options: data['options'],
     );

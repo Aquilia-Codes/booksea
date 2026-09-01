@@ -57,7 +57,7 @@ class QRImage extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${tour.startTime.toDate().hour}:${tour.startTime.toDate().minute.toString().padLeft(2, '0')} - ${tour.endTime.toDate().hour}:${tour.endTime.toDate().minute.toString().padLeft(2, '0')}',
+                          '${tour.startTime.hour}:${tour.startTime.minute.toString().padLeft(2, '0')} - ${tour.endTime.hour}:${tour.endTime.minute.toString().padLeft(2, '0')}',
                           style: TextStyle(
                             fontSize: 25,
                             fontWeight: FontWeight.bold,
@@ -65,14 +65,14 @@ class QRImage extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          tour.startTime.toDate().day ==
-                                      tour.endTime.toDate().day &&
-                                  tour.startTime.toDate().month ==
-                                      tour.endTime.toDate().month &&
-                                  tour.startTime.toDate().year ==
-                                      tour.endTime.toDate().year
-                              ? '${tour.startTime.toDate().day}.${tour.startTime.toDate().month}.${tour.startTime.toDate().year}'
-                              : '${tour.startTime.toDate().day}.${tour.startTime.toDate().month}.${tour.startTime.toDate().year} - ${tour.endTime.toDate().day}.${tour.endTime.toDate().month}.${tour.endTime.toDate().year}',
+                          tour.startTime.day ==
+                                      tour.endTime.day &&
+                                  tour.startTime.month ==
+                                      tour.endTime.month &&
+                                  tour.startTime.year ==
+                                      tour.endTime.year
+                              ? '${tour.startTime.day}.${tour.startTime.month}.${tour.startTime.year}'
+                              : '${tour.startTime.day}.${tour.startTime.month}.${tour.startTime.year} - ${tour.endTime.day}.${tour.endTime.month}.${tour.endTime.year}',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,

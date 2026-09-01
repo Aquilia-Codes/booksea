@@ -142,12 +142,26 @@ after inactivity and drops connections — client needs reconnect-with-backoff
 2. ~~Upgrade the toolchain~~ — done, was already in the uncommitted diff:
    Gradle 8.0→9.7.1, AGP 8.1.0→9.3.0, Kotlin 2.1.0→2.4.10, google-services
    4.4.2→4.5.0, flex_color_scheme/intl bumps for Flutter 3.35.
-3. Drop `Timestamp` for `DateTime` — 6 usages in the UI (all
-   `Timestamp.fromDate(...)`) plus `tour_model.dart` and `type_model.dart`.
-   `tour_model.dart` already parses both Timestamps and ISO strings, so it's
-   half done. This is the prerequisite for `cloud_firestore` leaving later.
-   Files: `models/tour_model.dart`, `models/type_model.dart`,
-   `ui/home/home.dart`, `ui/search/search_and_filter.dart`.
+3. ~~Drop `Timestamp` for `DateTime`~~ — done 2026-09-01. Turned out to be
+   more than the artifact's original estimate of 6 usages: ~60 `.toDate()`
+   call sites across `home.dart`, `search_and_filter.dart`, `qr_image.dart`
+   and `firestore_database.dart`, plus the 6 `Timestamp.fromDate(...)`
+   construction sites and the two model files. All mechanical — `TourModel`
+   and `TypeModel` fields are now plain `DateTime`, `TourModel.fromMap`
+   parses the ISO datetime strings the new backend sends,
+   `TypeModel.fromMap` parses the `HH:mm:ss` time-only strings the backend
+   sends (prefixed with a placeholder date, since only hour/minute are ever
+   read via `TimeOfDay.fromDateTime`). `flutter analyze`: 0 errors (86
+   pre-existing lint infos, unrelated). Also fixed in passing:
+   `TourModel.toMap()` now writes `price` — this was bug #3 from the
+   "defects in transit" list (see "Three pre-existing bugs" above), now
+   fixed on the Flutter side too, not just the backend schema.
+   `firestore_database.dart` still references `Timestamp` in its two Firestore
+   `.where()` clauses — left as-is since that whole file is replaced by
+   `ApiDatabase` in the next phase, not worth polishing dead code.
+   Files touched: `models/tour_model.dart`, `models/type_model.dart`,
+   `ui/home/home.dart`, `ui/home/qr_image.dart`,
+   `ui/search/search_and_filter.dart`.
 4. Build the backend — Express + Prisma against the schema above. Seed from a
    Firestore export so development happens against real bookings, not
    invented ones (see "Open items" below re: whether that export is possible).
