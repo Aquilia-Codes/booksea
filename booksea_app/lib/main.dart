@@ -10,7 +10,13 @@ import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    // TEMP: backend migration in progress, Firebase may be unreachable.
+    // Auth is bypassed (see kBypassFirebaseAuth); keep booting regardless.
+    print('Firebase.initializeApp failed: $e');
+  }
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) async {
     runApp(

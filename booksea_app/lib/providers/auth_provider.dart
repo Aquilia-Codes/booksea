@@ -17,6 +17,22 @@ enum Status {
   NoAccess
 }
 
+// TEMP: Firebase backend is being migrated/is unreachable. Set this to false
+// once the new backend's auth is wired up, and remove _fakeUser/_fakeAuthUser.
+const bool kBypassFirebaseAuth = true;
+
+final UserModel _fakeUser = UserModel(
+  uid: 'debug-fake-uid',
+  email: 'debug@booksea.local',
+  nickname: 'Debug User',
+  provision: 0,
+  hasAccess: true,
+  isAdmin: true,
+  isOwner: true,
+  companyId: 'debug-company',
+  boatIds: const ['Catamaran', 'Yacht'],
+);
+
 class AuthProvider extends ChangeNotifier {
   //Firebase Auth object
   late FirebaseAuth _auth;
@@ -30,19 +46,28 @@ class AuthProvider extends ChangeNotifier {
   List<String> _boatIds =
       []; // Declare and initialize _boatIds as a List<String>
 
-  String? get userId => _auth.currentUser?.uid;
+  String? get userId =>
+      kBypassFirebaseAuth ? _fakeUser.uid : _auth.currentUser?.uid;
 
   Status get status => _status;
 
   List<String> get boatIds =>
       _boatIds; // Ensure the getter returns List<String>
 
-  Stream<UserModel> get user =>
-      _auth.authStateChanges().asyncMap((user) => _userFromFirebase(user));
+  Stream<UserModel> get user => kBypassFirebaseAuth
+      ? Stream.value(_fakeUser)
+      : _auth.authStateChanges().asyncMap((user) => _userFromFirebase(user));
 
-  User? get authUser => _auth.currentUser;
+  User? get authUser => kBypassFirebaseAuth ? null : _auth.currentUser;
 
   AuthProvider() {
+    if (kBypassFirebaseAuth) {
+      _companyId = _fakeUser.companyId;
+      _boatIds = List<String>.from(_fakeUser.boatIds);
+      _status = Status.Authenticated;
+      return;
+    }
+
     //initialise object
     _auth = FirebaseAuth.instance;
 
@@ -181,6 +206,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future signOut() async {
+    if (kBypassFirebaseAuth) {
+      _status = Status.Unauthenticated;
+      notifyListeners();
+      return Future.delayed(Duration.zero);
+    }
     print('active user: ${_auth.currentUser}');
     _auth.signOut();
     _status = Status.Unauthenticated;
