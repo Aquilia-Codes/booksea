@@ -71,7 +71,7 @@ class _SearchAndFilterScreenState extends State<SearchAndFilterScreen> {
               Column(
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _boatId,
+                    initialValue: _boatId,
                     items: authProvider.boatIds.map((String value) {
                       return DropdownMenuItem<String>(
                         value: value,
@@ -497,7 +497,7 @@ class TourCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Container(
+                SizedBox(
                   height: 30, // Set a fixed height for the row
                   child: Center(
                       child: Text(
@@ -533,7 +533,7 @@ class TourCard extends StatelessWidget {
                             color: Theme.of(context).colorScheme.secondary)),
                   ),
                 ),
-                Container(
+                SizedBox(
                   height: 40, // Set a fixed height for the row
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1134,7 +1134,7 @@ class _TourDeletePopupState extends State<TourDeletePopup> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: MediaQuery.sizeOf(context).width * 0.9,
       height: 220,
       child: Center(
@@ -1235,7 +1235,7 @@ class GroupDataStream extends StatelessWidget {
                     color: Theme.of(context).colorScheme.primary)),
           );
         }
-        return Container(
+        return SizedBox(
           height: MediaQuery.sizeOf(context).height * 0.6 - 94,
           child: SingleChildScrollView(
             child: ListView.builder(
@@ -1562,7 +1562,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   ),
                   SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _paymentStatusController.text,
+                    initialValue: _paymentStatusController.text,
                     items: ['Paid', 'Reserved'].map((String status) {
                       return DropdownMenuItem<String>(
                         value: status,
@@ -1901,7 +1901,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                   ),
                   SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _paymentStatusController.text.isNotEmpty
+                    initialValue: _paymentStatusController.text.isNotEmpty
                         ? _paymentStatusController.text
                         : null,
                     items:

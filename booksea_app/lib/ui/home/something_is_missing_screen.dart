@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
 
 class SomethingIsMissingScreen extends StatelessWidget {
-  const SomethingIsMissingScreen({Key? key}) : super(key: key);
+  const SomethingIsMissingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

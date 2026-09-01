@@ -155,7 +155,7 @@ class FirestoreDatabase {
     final user = await getUser();
 
     final existingTours = await getTours(companyId, boatId, startTime, endTime);
-    print('Existing tours: ${existingTours}');
+    print('Existing tours: $existingTours');
     print('Tour: ${tour.startTime} to ${tour.endTime}');
     print('User: ${user.uid}');
 

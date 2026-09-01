@@ -5,7 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 
 class QRScannerScreen extends StatelessWidget {
-  QRScannerScreen({
+  const QRScannerScreen({
     super.key,
   });
 
