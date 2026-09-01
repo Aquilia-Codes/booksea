@@ -84,7 +84,7 @@ router.post(
   "/:id/groups",
   wrap(async (req, res) => {
     const tour = await getAccessibleTour(req.user!, req.params.id);
-    const body = createGroupBody.parse(req.body);
+    const { countryDialogCode, ...rest } = createGroupBody.parse(req.body);
     const bookerId = req.user!.id;
 
     const group = await prisma.$transaction(async (tx) => {
@@ -101,12 +101,12 @@ router.post(
         _sum: { adultCount: true },
       });
       const filled = sum._sum.adultCount ?? 0;
-      if (filled + body.adultCount > locked.capacity) {
+      if (filled + rest.adultCount > locked.capacity) {
         throw new HttpError(409, "Group capacity exceeds tour capacity.");
       }
 
       return tx.bookingGroup.create({
-        data: { ...body, tourId: tour.id, bookerId },
+        data: { ...rest, countryDialCode: countryDialogCode, tourId: tour.id, bookerId },
       });
     });
 

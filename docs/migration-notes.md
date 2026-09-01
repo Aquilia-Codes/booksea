@@ -8,7 +8,16 @@ just the raw points to turn into prose later.
 ## Decided tech stack (2026-09-01)
 
 - **Backend**: Express.js + TypeScript + Prisma ORM, PostgreSQL, deployed on
-  Render (web service + managed Postgres).
+  Render (web service + managed Postgres). Confirmed 2026-09-01 as still the
+  right call for now (matches the course-prescribed stack, maps cleanly onto
+  the schema/API already built). Two caveats to plan around, not reasons to
+  switch: Render's **free Postgres instance expires and is deleted after 30
+  days** — fine during active development, but needs upgrading to paid (or
+  periodic backup+recreate) before a semester-long project outlives it; and
+  the **free web service sleeps after inactivity**, dropping open
+  connections — already handled by socket.io's built-in reconnect plus a
+  client refetch on reconnect, but expect a slow first request after idle
+  periods when demoing.
 - **Why Postgres over MongoDB**: the data is strongly relational — companies
   own boats, boats run tours, tours hold booking groups, all foreign keys and
   joins. MongoDB is a document store, same shape as Firestore, so it would
@@ -224,6 +233,33 @@ docs later:
   owner (never self-claimed), and log changes to `isOwner`/`isAdmin` for an
   audit trail. **Not implemented yet** — waiting on user confirmation before
   touching the schema/routes for this.
+
+## Backend tested against a real database (2026-09-01)
+
+Installed local PostgreSQL 18, applied the migration, ran the full
+create/read/update/delete flow through the actual HTTP API using a seed
+script (`backend/scripts/seed-smoke-test.ts`, `npm run seed:smoke`) that
+creates a test tier/company/user/boat and prints a valid access token
+(bypasses needing a real Google idToken for this kind of testing). See
+`backend/README.md` "Status" for the full list of what was exercised.
+
+Headline result: the three original Firestore bugs (tour total overwritten
+on edit, arrived count never decreasing, price silently dropped) are
+confirmed fixed by the `tour_totals` view design — verified by directly
+reproducing the old bug scenarios and watching the numbers come out correct.
+
+Also caught a real bug during this testing that `tsc` did not catch:
+`POST /tours/:id/groups` spread the request body (which uses the
+Dart-facing field name `countryDialogCode`) straight into Prisma's
+`bookingGroup.create()`, which expects `countryDialCode`. TypeScript's
+excess-property checking doesn't apply through an object spread, so the
+mismatch only surfaced as a Prisma runtime validation error. Fixed by
+destructuring and renaming the field explicitly, matching the pattern
+already used in `PATCH /groups/:id`. Worth remembering as a general
+lesson for the rest of this backend: any route that spreads a
+Zod-validated body into a Prisma `data:` object is a place where a
+Dart/Prisma field-name mismatch can hide from the type checker — worth
+double-checking each one by hand rather than trusting `tsc --noEmit` alone.
 
 ## Open items (need user input)
 
