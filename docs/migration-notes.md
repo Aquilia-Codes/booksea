@@ -199,15 +199,38 @@ docs later:
   endpoint? manual DB grant for now?) before any company is usable beyond
   the owner's own account.
 
+## Decisions made 2026-09-01
+
+- **Firestore data export: not possible.** The old `aquilia-booksea` Firebase
+  project is off-limits (access lost). The new backend starts from an empty
+  database — no seed/import step, backend dev and testing use fixtures.
+- **Render/Postgres provisioning: deferred.** User will set this up later;
+  the backend scaffold (see above) exists but is still untested against a
+  real database until then.
+- **Roles clarified**: a company can have multiple bookers (people who work
+  for it and create/manage bookings); admins can grant a person `hasAccess`
+  to join a company's group of bookers. This confirms the role model the
+  schema already has (`hasAccess`, `isAdmin`, `isOwner` per user).
+- **Multi-owner: leaning yes, not yet built.** User was unsure whether
+  allowing more than one owner per company is safe, versus a single owner
+  (some people don't want to handle setup themselves and hand it to someone
+  else). Assessment: performance impact is negligible either way (`isOwner`
+  is a single boolean check, O(1) per request). Security-wise the tradeoff is
+  accountability, not raw risk — every owner has unrestricted control (delete
+  company, reassign any role, see all financials), so more owners means more
+  accounts whose compromise is total, with no single accountable person.
+  Recommendation: allow multiple owners (serves the "delegate the setup"
+  case directly), but only let an existing owner promote someone else to
+  owner (never self-claimed), and log changes to `isOwner`/`isAdmin` for an
+  audit trail. **Not implemented yet** — waiting on user confirmation before
+  touching the schema/routes for this.
+
 ## Open items (need user input)
 
-- Firestore data export: is the old `aquilia-booksea` Firebase project
-  reachable at all for a one-time data dump, or are we starting fresh? Ties
-  into whether backend dev seeds from real data or fixtures.
-- Render account + Postgres instance not yet provisioned — needed for a real
-  `DATABASE_URL` to actually test the backend above.
-- Who can grant `hasAccess`/`isAdmin`/`isOwner`/company boat assignments,
-  now that `PATCH /me` can't? (see "Backend scaffold" above)
+- Confirm the multi-owner recommendation above (or pick single-owner) before
+  it's built into the schema/`companies`/`users` routes.
+- Who can grant `hasAccess`/`isAdmin`/boat assignments day-to-day — a real
+  admin-facing endpoint doesn't exist yet, only the data model supports it.
 - `kBypassFirebaseAuth` (auth_provider.dart) and the `Firebase.initializeApp()`
   try/catch (main.dart) are temporary testing shims from before this stack
   was decided — remove once real auth against the new backend lands (phase 6).
