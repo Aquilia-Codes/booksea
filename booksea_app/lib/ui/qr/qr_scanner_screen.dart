@@ -1,5 +1,5 @@
 import 'package:booksea_app/models/group_model.dart';
-import 'package:booksea_app/services/firestore_database.dart';
+import 'package:booksea_app/services/api_database.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +12,7 @@ class QRScannerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final firestoreDatabase =
-        Provider.of<FirestoreDatabase>(context, listen: false);
+        Provider.of<ApiDatabase>(context, listen: false);
 
     return Scaffold(
       body: Container(
@@ -86,7 +86,7 @@ class QRScannerScreen extends StatelessWidget {
 }
 
 void openGroupPopup(BuildContext context, GroupModel group, String companyId,
-    String boatId, String tourId, FirestoreDatabase firestoreDatabase) {
+    String boatId, String tourId, ApiDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {

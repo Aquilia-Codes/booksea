@@ -10,7 +10,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
-    final authUser = authProvider.authUser;
+    final photoUrl = authProvider.photoUrl;
 
     return Scaffold(
       body: Stack(
@@ -33,7 +33,7 @@ class SettingsScreen extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 55,
                   backgroundImage: NetworkImage(
-                      authUser?.photoURL ?? 'https://via.placeholder.com/150'),
+                      photoUrl ?? 'https://via.placeholder.com/150'),
                 ),
               ),
             ),

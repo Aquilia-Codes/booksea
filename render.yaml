@@ -1,0 +1,41 @@
+# Render Blueprint - lets you provision the Postgres DB + web service in one
+# go from the Render dashboard ("New" -> "Blueprint", point it at this repo)
+# instead of configuring each by hand. Untested against real Render infra
+# (no account/API access from here) - double-check field names against
+# Render's current docs (render.com/docs/blueprint-spec) if it doesn't take.
+#
+# After the blueprint deploys, fill in GOOGLE_OAUTH_CLIENT_IDS in the Render
+# dashboard if it needs the iOS/web client id(s) too (see backend/.env.example)
+# - Android's is pre-filled below from google-services.json (not a secret,
+# OAuth client ids are meant to be public).
+
+databases:
+  - name: booksea-db
+    plan: free
+    postgresMajorVersion: "17"
+
+services:
+  - type: web
+    name: booksea-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run prisma:generate && npm run build
+    startCommand: npm run prisma:migrate && npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: booksea-db
+          property: connectionString
+      - key: GOOGLE_OAUTH_CLIENT_IDS
+        value: "683257674665-6rho5dria0i1e0oekm3fgjkbjle7ab9a.apps.googleusercontent.com 683257674665-vl4nol9g3quldieouhhmu20ndf87fa57.apps.googleusercontent.com"
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: "15m"
+      - key: JWT_REFRESH_TTL
+        value: "30d"
+      - key: CORS_ORIGIN
+        value: "*"

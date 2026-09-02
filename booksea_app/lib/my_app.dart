@@ -4,7 +4,7 @@ import 'package:booksea_app/flavour.dart';
 import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
 import 'package:booksea_app/routes.dart';
-import 'package:booksea_app/services/firestore_database.dart';
+import 'package:booksea_app/services/api_database.dart';
 import 'package:booksea_app/ui/search/search_and_filter.dart';
 import 'package:booksea_app/ui/home/home.dart';
 import 'package:booksea_app/ui/home/no_code_home.dart';
@@ -22,7 +22,7 @@ class MyApp extends StatefulWidget {
 
   // Expose builders for 3rd party services at the root of the widget tree
   // This is useful when mocking services while testing
-  final FirestoreDatabase Function(BuildContext context, String uid)
+  final ApiDatabase Function(BuildContext context, String uid)
       databaseBuilder;
 
   @override

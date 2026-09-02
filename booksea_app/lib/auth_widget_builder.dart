@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
-import 'package:booksea_app/services/firestore_database.dart';
+import 'package:booksea_app/services/api_database.dart';
 import 'package:provider/provider.dart';
 
 /*
@@ -17,7 +17,7 @@ class AuthWidgetBuilder extends StatelessWidget {
       {required Key key, required this.builder, required this.databaseBuilder})
       : super(key: key);
   final Widget Function(BuildContext, AsyncSnapshot<UserModel>) builder;
-  final FirestoreDatabase Function(BuildContext context, String uid)
+  final ApiDatabase Function(BuildContext context, String uid)
       databaseBuilder;
 
   @override
@@ -36,7 +36,7 @@ class AuthWidgetBuilder extends StatelessWidget {
           return MultiProvider(
             providers: [
               Provider<UserModel>.value(value: user),
-              Provider<FirestoreDatabase>(
+              Provider<ApiDatabase>(
                 create: (context) => databaseBuilder(context, user.uid),
               ),
             ],

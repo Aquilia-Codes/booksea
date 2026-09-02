@@ -165,13 +165,127 @@ after inactivity and drops connections — client needs reconnect-with-backoff
 4. Build the backend — Express + Prisma against the schema above. Seed from a
    Firestore export so development happens against real bookings, not
    invented ones (see "Open items" below re: whether that export is possible).
-5. Swap the data layer — write `ApiDatabase` in
-   `services/api_database.dart` with the same 20 method signatures as
-   `FirestoreDatabase`, then change the one call site that constructs it.
-   Nothing that calls it needs to change.
-6. Swap auth — `AuthProvider` keeps its `Status` enum and `Stream<UserModel>`;
-   underneath, Firebase Auth becomes the new JWT flow. Also bump
-   `google_sign_in` 6.2.2 → 7.x.
+5. ~~Swap the data layer~~ — done 2026-09-02. `services/api_database.dart`
+   implements the same 19 method signatures as `FirestoreDatabase` (20 minus
+   `companyExists`, dropped by design — see below), backed by
+   `services/api_client.dart` (a thin `http`-based REST client with
+   in-memory JWT storage and automatic refresh-on-401). Every
+   `FirestoreDatabase` reference in the UI (`home.dart`,
+   `search_and_filter.dart`, `qr_scanner_screen.dart`, `no_code_home.dart`,
+   `auth_widget_builder.dart`, `my_app.dart`, `main.dart`, plus the stale
+   `test/widget_test.dart`) was mechanically renamed to `ApiDatabase` and
+   repointed to the new import — `auth_provider.dart` deliberately left
+   alone, it still constructs the old `FirestoreDatabase` internally but
+   that whole code path is dead while `kBypassFirebaseAuth` is on, and gets
+   rewritten in phase 6 anyway. `companyExists` has no ApiDatabase
+   equivalent: the backend folds that check into `POST /me/company` itself
+   (404 if the code doesn't match), so there's nothing left to check
+   separately.
+
+   **Streams are polling placeholders** (`getToursStream`,
+   `getSumOfPriceStream`, `getGroups`, `searchTours`): each re-runs the
+   matching REST call every 5s via a shared `_pollStream` helper. Same
+   `Stream<T>` signatures as before, so no `StreamBuilder` call site
+   changes — phase 7 swaps the implementation for socket.io push without
+   touching callers.
+
+   **Verified against the real local backend**, not just typechecked:
+   `flutter analyze` is 0 errors, and a throwaway script
+   (`tool/smoke_test_api_database.dart`, run via `dart run ... <token>`,
+   token from `backend/npm run seed:smoke`) exercised all the write/read
+   paths — getUser, getTourTypesAndBoatInfo, createTour, getTours,
+   createGroup, updateGroupHasArrived, getGroups, delete cleanup — against
+   the live database. This caught three more real bugs before they could
+   surface at runtime in the app:
+
+   1. **Boat "id" was actually always a name.** The old Firestore backend
+      used `boats.name` as the Firestore document id, so
+      `AuthProvider.boatIds` (and every `boatId` parameter threaded through
+      `FirestoreDatabase`) was always a human-readable string, used
+      directly as both value and label in the two boat dropdowns. The new
+      Postgres schema gave boats a real UUID `id`, which would have broken
+      those dropdowns silently (they'd show/select UUIDs). Fixed on the
+      **backend**, not the client: added `getBoatByName` in
+      `backend/src/lib/authz.ts`, which resolves boat-facing routes
+      (`GET/POST /boats/:id...`) by `(companyId, name)` instead of the
+      primary key, and changed `/me`'s `boatIdsFor` to return
+      `boat.name` instead of `userBoat.boatId`. Routes that already have a
+      real boat UUID in hand (resolving a tour's/group's `boatId` foreign
+      key) still use the original id-based `getAccessibleBoat` — only the
+      URL-facing lookup changed. Zero Flutter-side changes needed.
+   2. **`UserModel.fromMap`'s `companyId` would crash for a brand-new
+      user.** The API sends `companyId: null` (nullable in Postgres) before
+      someone joins a company; the field is non-nullable `String` in
+      `UserModel`. Fixed with `data['companyId'] ?? ''`.
+   3. **`TourModel`/`GroupModel`'s `price` field would crash on a
+      whole-number price.** `double price` assigned directly from a decoded
+      JSON number throws in Dart when that number has no decimal point
+      (e.g. `0`, which decodes as `int`, not `double`) — exactly the value
+      a freshly created tour/group has. `TypeModel` already guarded against
+      this for its own price fields; `TourModel`/`GroupModel` didn't. Fixed
+      both with `(data['price'] as num).toDouble()`. Also fixed
+      `UserModel.provision` the same way (`.round()` instead, since it's an
+      `int`) since the backend's `provision` column allows decimals even
+      though the Dart model doesn't.
+
+   Not yet tested: `PATCH /me`, `updateTour`, `updateGroup`, `deleteTour`
+   cascade-to-groups, `searchTours`, `createBoat`, `writeCompanyIdToUserDocument`
+   — the smoke script didn't cover every method, only enough to validate the
+   client/server contract end to end. Full coverage happens naturally once
+   the app itself is driven manually (phase 6+).
+6. ~~Swap auth~~ — done 2026-09-02, with one caveat (see below).
+   `AuthProvider` (`lib/providers/auth_provider.dart`) was rewritten from
+   scratch: keeps the exact same `Status` enum and `Stream<UserModel> user`
+   the UI already consumes, but underneath, `google_sign_in` gets an
+   `idToken` and POSTs it to `/auth/google` instead of handing it to
+   Firebase. Also added: session persistence across cold starts (the
+   refresh token is stored in `SharedPreferences` and silently redeemed on
+   startup via `ApiClient.refreshWithToken` — Firebase Auth used to give
+   this for free, so it needed an explicit replacement), and
+   `AuthProvider.refreshUser()` (public) replacing the old direct
+   `onAuthStateChanged(firebaseUser)` re-trigger call in
+   `no_code_home.dart` after a company code is submitted.
+   `settings_screen.dart`'s `authUser?.photoURL` (a Firebase `User` field)
+   became `authProvider.photoUrl`, populated straight from
+   `GoogleSignInAccount.photoUrl` on sign-in — no backend round trip needed
+   for it. **`google_sign_in` was NOT bumped to 7.x** — the artifact
+   suggested reusing a migration "already solved in the BLoC repo", but no
+   such repo/reference was available here, and 7.x is a real breaking API
+   redesign (no more `GoogleSignIn()` constructor, different auth flow
+   entirely). Given 6.2.2's `signIn()`/`.authentication`/`.idToken` still
+   work fine and nothing forces the upgrade, it was left alone rather than
+   risk an unverifiable rewrite of the login button on top of everything
+   else in this phase. Worth revisiting later on its own.
+
+   `flutter analyze`: 0 new errors (96 total, all pre-existing-pattern
+   lint infos plus prints in throwaway test scripts). Verified for real,
+   not just typechecked: exported `issueTokens` from `backend/src/routes/
+   auth.ts` so `seed-smoke-test.ts` could mint a real access+refresh pair,
+   then exercised `POST /auth/refresh` (rotates correctly; the old token
+   is rejected with 401 immediately after) and `POST /auth/logout`
+   (revokes; the revoked token can no longer refresh) directly against the
+   live database — this is the first time those two endpoints were tested
+   at all, not just `/auth/google`.
+
+   **What's still genuinely untested: the interactive Google sign-in
+   button itself** (`POST /auth/google` with a real idToken). That
+   requires tapping through Google's actual OAuth consent screen on a
+   running device/browser, which isn't something achievable in this
+   environment — the code has been reviewed carefully (verifies the
+   idToken with `google-auth-library` against `GOOGLE_OAUTH_CLIENT_IDS`,
+   upserts the user by `googleSub`, issues tokens the same way the tested
+   refresh/logout paths already validated) but hasn't been click-tested.
+   **Please test the actual "Login" → Google button flow in a running app
+   before considering this phase fully done.** `kBypassFirebaseAuth`
+   (still in `auth_provider.dart`, default `false` now) is there as a
+   fallback switch if that flow needs more work — flip it to `true` to go
+   back to the fake-user bypass without losing anything.
+
+   `firestore_database.dart`/`firestore_service.dart`/`firestore_path.dart`
+   are now fully orphaned — nothing imports them anymore — but left in
+   place rather than deleted, matching the plan's phase 8 ("remove
+   Firebase" comes last, together with dropping the pubspec dependencies
+   and `google-services.json`).
 7. Wire the sockets — replace polling/placeholder refetches with socket.io
    rooms. Done last: the app is fully working before this phase; it only
    makes updates faster.
@@ -227,9 +341,14 @@ docs later:
 - **Firestore data export: not possible.** The old `aquilia-booksea` Firebase
   project is off-limits (access lost). The new backend starts from an empty
   database — no seed/import step, backend dev and testing use fixtures.
-- **Render/Postgres provisioning: deferred.** User will set this up later;
-  the backend scaffold (see above) exists but is still untested against a
-  real database until then.
+- **Render/Postgres provisioning: still not done as of 2026-09-02.** Local
+  PostgreSQL 18 was installed instead and used for all testing so far (see
+  "Backend tested against a real database" and "Swap the data layer"
+  above) — Render itself (web service + managed Postgres) has not been
+  touched. `ApiClient.baseUrl` (booksea_app/lib/services/api_client.dart)
+  defaults to `http://localhost:4000`; switching it to a Render URL once
+  deployed is a one-line change, nothing else in the client depends on
+  where the backend runs.
 - **Roles clarified**: a company can have multiple bookers (people who work
   for it and create/manage bookings); admins can grant a person `hasAccess`
   to join a company's group of bookers. This confirms the role model the

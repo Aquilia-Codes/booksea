@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:booksea_app/my_app.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
 import 'package:booksea_app/providers/theme_provider.dart';
-import 'package:booksea_app/services/firestore_database.dart';
+import 'package:booksea_app/services/api_database.dart';
 import 'package:provider/provider.dart';
 
 void main() async {
@@ -35,7 +35,7 @@ void main() async {
           ), 
         ],
         child: MyApp(
-          databaseBuilder: (_, uid) => FirestoreDatabase(uid: uid),
+          databaseBuilder: (_, uid) => ApiDatabase(uid: uid),
           key: const Key('Booksea'),
         ),
       ),

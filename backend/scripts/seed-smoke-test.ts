@@ -3,6 +3,7 @@
 // Not part of the app - safe to delete once real auth is wired up.
 import { prisma } from "../src/lib/prisma";
 import { signAccessToken } from "../src/lib/jwt";
+import { issueTokens } from "../src/routes/auth";
 
 async function main() {
   const tier = await prisma.tier.upsert({
@@ -42,10 +43,13 @@ async function main() {
     create: { userId: user.id, boatId: boat.id },
   });
 
+  const tokens = await issueTokens(user.id);
+
   console.log("USER_ID=" + user.id);
   console.log("COMPANY_ID=" + company.id);
   console.log("BOAT_ID=" + boat.id);
   console.log("ACCESS_TOKEN=" + signAccessToken(user.id));
+  console.log("REFRESH_TOKEN=" + tokens.refreshToken);
 }
 
 main()

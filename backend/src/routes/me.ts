@@ -22,8 +22,14 @@ function serializeUser(user: NonNullable<Express.Request["user"]>, boatIds: stri
 }
 
 async function boatIdsFor(userId: string): Promise<string[]> {
-  const rows = await prisma.userBoat.findMany({ where: { userId }, select: { boatId: true } });
-  return rows.map((row) => row.boatId);
+  // Returns boat *names*, not the internal boat UUID - the Flutter client
+  // treats "boatId" as a human-readable, dropdown-displayable string
+  // throughout (see docs/migration-notes.md and authz.ts's getBoatByName).
+  const rows = await prisma.userBoat.findMany({
+    where: { userId },
+    select: { boat: { select: { name: true } } },
+  });
+  return rows.map((row) => row.boat.name);
 }
 
 // getUser -> GET /me

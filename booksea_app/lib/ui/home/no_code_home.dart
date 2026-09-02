@@ -1,6 +1,5 @@
 import 'package:booksea_app/providers/auth_provider.dart' as auth_provider;
-import 'package:booksea_app/services/firestore_database.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:booksea_app/services/api_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -53,19 +52,16 @@ class NoCodeHomeScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: () async {
-                      final firestoreDatabase = Provider.of<FirestoreDatabase>(
+                      final apiDatabase = Provider.of<ApiDatabase>(
                           context,
                           listen: false);
                       // Use the stored companyCode variable here
-                      await firestoreDatabase
+                      await apiDatabase
                           .writeCompanyIdToUserDocument(companyCode);
                       // Trigger the authentication status check
-                      final currentUser = FirebaseAuth.instance.currentUser;
-                      if (currentUser != null) {
-                        await Provider.of<auth_provider.AuthProvider>(context,
-                                listen: false)
-                            .onAuthStateChanged(currentUser);
-                      }
+                      await Provider.of<auth_provider.AuthProvider>(context,
+                              listen: false)
+                          .refreshUser();
                     },
                     child: const Text('Submit'),
                   ),

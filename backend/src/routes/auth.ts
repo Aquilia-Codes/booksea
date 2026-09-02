@@ -24,7 +24,10 @@ function refreshTtlMs(): number {
   return value * unitMs;
 }
 
-async function issueTokens(userId: string) {
+// Exported for scripts/seed-smoke-test.ts, which needs a real token pair
+// (not just a signed access token) to exercise /auth/refresh and
+// /auth/logout without a real Google idToken.
+export async function issueTokens(userId: string) {
   const tokenId = randomUUID();
   const refreshToken = signRefreshToken(userId, tokenId);
   await prisma.refreshToken.create({

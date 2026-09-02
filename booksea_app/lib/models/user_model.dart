@@ -53,13 +53,19 @@ class UserModel {
   }
 
   factory UserModel.fromMap(Map<String, dynamic> data, String documentId) {
-    final provision = data['provision'] ?? 0;
+    // The API's provision column allows decimals (Decimal(5,2)); this model
+    // has always been an int, so round rather than let a fractional value
+    // (e.g. 2.5) throw a "double isn't a subtype of int" at parse time.
+    final provision = ((data['provision'] ?? 0) as num).round();
     return UserModel(
       uid: data['uid'],
       hasAccess: data['hasAccess'],
       isAdmin: data['isAdmin'],
       isOwner: data['isOwner'],
-      companyId: data['companyId'],
+      // A brand-new user has no company yet - the API sends this as JSON
+      // null (companyId is nullable in Postgres), which would otherwise
+      // crash here since this field is a non-nullable String.
+      companyId: data['companyId'] ?? '',
       email: data['email'],
       phoneNumber: data['phoneNumber'],
       nickname: data['nickname'],

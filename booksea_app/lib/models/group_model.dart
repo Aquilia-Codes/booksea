@@ -31,7 +31,9 @@ class GroupModel {
       groupName: data['groupName'],
       adultCount: data['adultCount'],
       childCount: data['childCount'],
-      price: data['price'],
+      // See tour_model.dart's fromMap - a whole-number price decodes as a
+      // Dart int, which throws if assigned directly to this double field.
+      price: (data['price'] as num).toDouble(),
       paymentStatus: data['paymentStatus'],
       bookerId: data['bookerId'],
       mobileNumber: data['mobileNumber'],

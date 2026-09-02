@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma, tourTotalsFor } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
-import { getAccessibleBoat } from "../lib/authz";
+import { getBoatByName } from "../lib/authz";
 import { serializeBoat, serializeTour, serializeTourType } from "../lib/serialize";
 import { HttpError } from "../lib/http-error";
 import { wrap } from "../lib/wrap";
@@ -20,7 +20,7 @@ const rangeQuery = z.object({
 router.get(
   "/:id",
   wrap(async (req, res) => {
-    const boat = await getAccessibleBoat(req.user!, req.params.id);
+    const boat = await getBoatByName(req.user!, req.params.id);
     const tourTypes = await prisma.tourType.findMany({ where: { boatId: boat.id } });
     res.json({
       boatInfo: serializeBoat(boat),
@@ -33,7 +33,7 @@ router.get(
 router.get(
   "/:id/tour-types/:name",
   wrap(async (req, res) => {
-    const boat = await getAccessibleBoat(req.user!, req.params.id);
+    const boat = await getBoatByName(req.user!, req.params.id);
     const type = await prisma.tourType.findUnique({
       where: { boatId_typeName: { boatId: boat.id, typeName: req.params.name } },
     });
@@ -47,7 +47,7 @@ router.get(
 router.get(
   "/:id/tours",
   wrap(async (req, res) => {
-    const boat = await getAccessibleBoat(req.user!, req.params.id);
+    const boat = await getBoatByName(req.user!, req.params.id);
     const query = rangeQuery.parse(req.query);
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -66,7 +66,7 @@ router.get(
 router.get(
   "/:id/tours/summary",
   wrap(async (req, res) => {
-    const boat = await getAccessibleBoat(req.user!, req.params.id);
+    const boat = await getBoatByName(req.user!, req.params.id);
     const query = rangeQuery.parse(req.query);
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -95,7 +95,7 @@ router.get(
 router.get(
   "/:id/tours/search",
   wrap(async (req, res) => {
-    const boat = await getAccessibleBoat(req.user!, req.params.id);
+    const boat = await getBoatByName(req.user!, req.params.id);
     const query = z
       .object({
         types: z.string().min(1),
@@ -142,7 +142,7 @@ const createTourBody = z.object({
 router.post(
   "/:id/tours",
   wrap(async (req, res) => {
-    const boat = await getAccessibleBoat(req.user!, req.params.id);
+    const boat = await getBoatByName(req.user!, req.params.id);
     const body = createTourBody.parse(req.body);
 
     let tourTypeId: string | null = null;

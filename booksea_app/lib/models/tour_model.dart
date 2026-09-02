@@ -40,7 +40,10 @@ class TourModel {
       capacity: data['capacity'],
       filled: data['filled'] ?? 0,
       arrived: data['arrived'] ?? 0,
-      price: data['price'] ?? 0.0,
+      // A whole-number price (e.g. 0) decodes from JSON as a Dart int, which
+      // throws if assigned directly to this double field - num.toDouble()
+      // handles both.
+      price: ((data['price'] ?? 0.0) as num).toDouble(),
       isBooked: data['isBooked'] ?? false,
       note: data['note'],
     );

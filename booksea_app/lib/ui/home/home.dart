@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:provider/provider.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
-import 'package:booksea_app/services/firestore_database.dart';
+import 'package:booksea_app/services/api_database.dart';
 import 'package:booksea_app/models/type_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
 import 'package:booksea_app/ui/home/qr_image.dart';
@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final firestoreDatabase =
-        Provider.of<FirestoreDatabase>(context, listen: false);
+        Provider.of<ApiDatabase>(context, listen: false);
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -332,7 +332,7 @@ class InfiniteDatePickerState extends State<InfiniteDatePicker> {
 
 class TourSelectionModal extends StatefulWidget {
   final String companyId;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
   final AuthProvider authProvider;
   final DateTime selectedDate;
   final String boatId;
@@ -720,7 +720,7 @@ class _TourSelectionModalState extends State<TourSelectionModal> {
 void showTourSelectionModal(
     BuildContext context,
     String companyId,
-    FirestoreDatabase firestoreDatabase,
+    ApiDatabase firestoreDatabase,
     AuthProvider authProvider,
     DateTime selectedDate,
     String boatId) {
@@ -745,7 +745,7 @@ class TourDataStream extends StatelessWidget {
   final String companyId;
   final String boatId;
   final DateTime selectedDate;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
 
   const TourDataStream(
       {super.key,
@@ -841,7 +841,7 @@ class TourDataStream extends StatelessWidget {
 
 class TourCard extends StatelessWidget {
   final TourModel tour;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
   final String companyId;
   final String boatId;
 
@@ -1029,7 +1029,7 @@ class TourCard extends StatelessWidget {
 
 // Open the tour in a popup
 void openTourPopup(BuildContext context, TourModel tour,
-    FirestoreDatabase firestoreDatabase, String companyId, String boatId) {
+    ApiDatabase firestoreDatabase, String companyId, String boatId) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -1119,7 +1119,7 @@ void openTourPopup(BuildContext context, TourModel tour,
 
 class TourPopup extends StatefulWidget {
   final TourModel tour;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
   final String companyId;
   final String boatId;
 
@@ -1216,7 +1216,7 @@ class _TourPopupState extends State<TourPopup> {
 }
 
 void openTourEditPopup(BuildContext context, String companyId, String boatId,
-    TourModel tour, FirestoreDatabase firestoreDatabase) {
+    TourModel tour, ApiDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -1240,7 +1240,7 @@ class TourEditPopup extends StatefulWidget {
   final TourModel tour;
   final String companyId;
   final String boatId;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
 
   const TourEditPopup({
     super.key,
@@ -1559,7 +1559,7 @@ class _TourEditPopupState extends State<TourEditPopup> {
 }
 
 void openTourDeletePopup(BuildContext context, TourModel tour, String companyId,
-    String boatId, FirestoreDatabase firestoreDatabase) {
+    String boatId, ApiDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -1579,7 +1579,7 @@ class TourDeletePopup extends StatefulWidget {
   final TourModel tour;
   final String companyId;
   final String boatId;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
 
   const TourDeletePopup(
       {super.key,
@@ -1673,7 +1673,7 @@ class GroupDataStream extends StatelessWidget {
   final String companyId;
   final String boatId;
   final TourModel tour;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
 
   const GroupDataStream({
     super.key,
@@ -1726,7 +1726,7 @@ class GroupCard extends StatelessWidget {
   final String companyId;
   final String boatId;
   final TourModel tour;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
 
   const GroupCard({
     super.key,
@@ -1782,7 +1782,7 @@ class GroupCard extends StatelessWidget {
 }
 
 void openGroupAddPopup(BuildContext context, String tourId, String companyId,
-    String boatId, FirestoreDatabase firestoreDatabase, TourModel tour) {
+    String boatId, ApiDatabase firestoreDatabase, TourModel tour) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -1808,7 +1808,7 @@ class GroupAddPopup extends StatefulWidget {
   final TourModel tour;
   final String companyId;
   final String boatId;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
 
   const GroupAddPopup({
     super.key,
@@ -2130,7 +2130,7 @@ void openGroupEditPopup(
     String boatId,
     String tourId,
     TourModel tour,
-    FirestoreDatabase firestoreDatabase) {
+    ApiDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -2158,7 +2158,7 @@ class GroupEditPopup extends StatefulWidget {
   final String boatId;
   final String tourId;
   final TourModel tour;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
 
   const GroupEditPopup({
     super.key,
@@ -2470,7 +2470,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
 }
 
 void openGroupPopup(BuildContext context, GroupModel group, String companyId,
-    String boatId, TourModel tour, FirestoreDatabase firestoreDatabase) {
+    String boatId, TourModel tour, ApiDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -2496,7 +2496,7 @@ class GroupPopup extends StatelessWidget {
   final String companyId;
   final String boatId;
   final TourModel tour;
-  final FirestoreDatabase firestoreDatabase;
+  final ApiDatabase firestoreDatabase;
   const GroupPopup({
     super.key,
     required this.group,
@@ -2673,7 +2673,7 @@ void openGroupDeletePopup(
     String companyId,
     String boatId,
     String tourId,
-    FirestoreDatabase firestoreDatabase) {
+    ApiDatabase firestoreDatabase) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -2708,7 +2708,7 @@ void openGroupDeletePopup(
 }
 
 void deleteGroup(String groupId, String companyId, String boatId, String tourId,
-    FirestoreDatabase firestoreDatabase) {
+    ApiDatabase firestoreDatabase) {
   firestoreDatabase.deleteGroup(companyId, boatId, tourId, groupId);
 }
 
