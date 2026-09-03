@@ -341,14 +341,26 @@ docs later:
 - **Firestore data export: not possible.** The old `aquilia-booksea` Firebase
   project is off-limits (access lost). The new backend starts from an empty
   database — no seed/import step, backend dev and testing use fixtures.
-- **Render/Postgres provisioning: still not done as of 2026-09-02.** Local
-  PostgreSQL 18 was installed instead and used for all testing so far (see
-  "Backend tested against a real database" and "Swap the data layer"
-  above) — Render itself (web service + managed Postgres) has not been
-  touched. `ApiClient.baseUrl` (booksea_app/lib/services/api_client.dart)
-  defaults to `http://localhost:4000`; switching it to a Render URL once
-  deployed is a one-line change, nothing else in the client depends on
-  where the backend runs.
+- **Render is live** (deployed manually, not via the `render.yaml`
+  blueprint — the Postgres instance was created by hand first via
+  "New → PostgreSQL", so the web service was then also created by hand via
+  "New → Web Service" pointed at the same database's *Internal* connection
+  URL, rather than letting the blueprint provision a second, separate
+  database). Root directory `backend`, build command
+  `npm install && npm run prisma:generate && npm run build`, start command
+  `npm run prisma:migrate && npm start` (chains the migration into every
+  deploy — safe, `prisma migrate deploy` is idempotent). Live at
+  `https://booksea.onrender.com`; `GET /health` returns `{"ok":true}` and
+  `GET /me` correctly 401s without a token, confirming the deployed app,
+  its Postgres connection, and the migration all worked. `ApiClient.baseUrl`
+  (`booksea_app/lib/services/api_client.dart`) now points here instead of
+  localhost/LAN — swap it back for local dev, see the comment on that field.
+  Added a plain `GET /` handler to `backend/src/index.ts` (previously
+  404'd, which looked broken when opening the bare URL in a browser -
+  the CSP errors seen when doing that were Render's own interstitial page,
+  not anything from our server).
+  Caveat carried over from the free-tier notes above: this Postgres
+  instance expires after 30 days unless upgraded.
 - **Roles clarified**: a company can have multiple bookers (people who work
   for it and create/manage bookings); admins can grant a person `hasAccess`
   to join a company's group of bookers. This confirms the role model the

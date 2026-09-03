@@ -19,17 +19,15 @@ class ApiClient {
   ApiClient._();
   static final instance = ApiClient._();
 
-  /// Override for local dev against a different host/port, or once deployed,
-  /// point this at the Render URL.
+  /// Deployed backend on Render - reachable from any network, no LAN/
+  /// firewall dance needed. Swap to 'http://localhost:4000' for
+  /// desktop/emulator testing against a local backend instead, or to
+  /// `http://<lan-ip>:4000` for a physical device testing against a local
+  /// backend on the same Wi-Fi (check the IP with `ipconfig`).
   ///
-  /// TEMP: pointed at the dev machine's LAN IP (not "localhost") because
-  /// testing happens on a physical device, which can't reach "localhost"
-  /// on the PC at all. Both devices must be on the same network, and this
-  /// IP will change if the PC reconnects to Wi-Fi or switches networks -
-  /// check it with `ipconfig` (Windows) if requests start failing again.
-  /// Switch back to 'http://localhost:4000' for desktop/emulator testing,
-  /// or to the Render URL once deployed.
-  static String baseUrl = 'http://192.168.31.17:4000';
+  /// Note: Render's free tier sleeps after inactivity - the first request
+  /// after a while can take 30-60s to respond while it wakes back up.
+  static String baseUrl = 'https://booksea.onrender.com';
 
   String? _accessToken;
   String? _refreshToken;

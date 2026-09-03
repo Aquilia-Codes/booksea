@@ -20,6 +20,9 @@ app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/", (_req, res) =>
+  res.json({ name: "booksea-backend", status: "ok", health: "/health" }),
+);
 
 app.use("/auth", authRoutes);
 app.use("/me", meRoutes);
