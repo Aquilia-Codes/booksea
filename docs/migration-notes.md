@@ -281,10 +281,53 @@ after inactivity and drops connections — client needs reconnect-with-backoff
    fallback switch if that flow needs more work — flip it to `true` to go
    back to the fake-user bypass without losing anything.
 
-   `firestore_database.dart`/`firestore_service.dart`/`firestore_path.dart`
-   are now fully orphaned — nothing imports them anymore — but left in
-   place rather than deleted, matching the plan's phase 8 ("remove
-   Firebase" comes last, together with dropping the pubspec dependencies
+## Google OAuth: moved to a fresh, independently-owned project (2026-09-04)
+
+The click-test above surfaced a real problem: `ApiException: 10`
+(`DEVELOPER_ERROR`) from Google's own sign-in SDK, on the *first* attempt.
+This happens entirely client-side, before any request reaches our backend —
+it means the certificate signing the app build isn't registered against an
+OAuth client Google recognizes, so the sign-in screen refuses to open at
+all.
+
+The OAuth clients in the original `google-services.json` belong to the old
+`aquilia-booksea` Firebase project, which a teammate (not this session's
+user) owns access to. Rather than route every fingerprint change through
+someone else — especially given that project is already being abandoned
+(see "Decisions made 2026-09-01": Firestore export is off the table,
+starting fresh) — registered a **new, independently-owned Google Cloud
+project** with its own OAuth clients instead. Fully decoupled from the old
+project; project number `865744272369` vs. the old `683257674665`.
+
+Two OAuth clients were needed, not one — worth remembering why:
+- **Android client** (package `codes.aquilia.booksea_app` + the local
+  debug keystore's SHA-1 fingerprint) — this is what was actually missing,
+  and what the `DEVELOPER_ERROR` was about. It's what lets Google's SDK
+  agree to show the sign-in screen for this specific app build at all.
+- **Web application client** (`865744272369-atobvfr5mo0s5prs63v99rg5872ehgp2.apps.googleusercontent.com`,
+  no JS origins/redirect URIs needed — it's never used for an actual
+  browser redirect flow) — passed as `serverClientId` to `GoogleSignIn()`
+  in `lib/providers/auth_provider.dart`, so the idToken Google issues is
+  addressed to *this* client. The backend's `google-auth-library` check
+  verifies the token's audience against `GOOGLE_OAUTH_CLIENT_IDS`, which
+  must be a Web client id for this to work — the Android client's id
+  doesn't work as a verifiable server-side audience the same way.
+
+Updated to the new Web client id: `backend/.env` (local),
+`backend/.env.example`, `render.yaml`, and the deployed Render service's
+env var (done manually in the Render dashboard, not tracked in this repo).
+
+**Caveat**: only the *local debug* keystore's SHA-1 is registered so far.
+A release build (Play Store, or any signed build handed to someone else)
+uses a different certificate with a different SHA-1, which will hit the
+same `DEVELOPER_ERROR` until that fingerprint is added too (same Android
+OAuth client supports multiple fingerprints, or add a second client) —
+not needed until a release build actually exists.
+
+`firestore_database.dart`/`firestore_service.dart`/`firestore_path.dart`
+are now fully orphaned — nothing imports them anymore — but left in
+place rather than deleted, matching the plan's phase 8 ("remove
+Firebase" comes last, together with dropping the pubspec dependencies
    and `google-services.json`).
 7. Wire the sockets — replace polling/placeholder refetches with socket.io
    rooms. Done last: the app is fully working before this phase; it only

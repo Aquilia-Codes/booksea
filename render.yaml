@@ -1,13 +1,11 @@
 # Render Blueprint - lets you provision the Postgres DB + web service in one
 # go from the Render dashboard ("New" -> "Blueprint", point it at this repo)
-# instead of configuring each by hand. Untested against real Render infra
-# (no account/API access from here) - double-check field names against
-# Render's current docs (render.com/docs/blueprint-spec) if it doesn't take.
-#
-# After the blueprint deploys, fill in GOOGLE_OAUTH_CLIENT_IDS in the Render
-# dashboard if it needs the iOS/web client id(s) too (see backend/.env.example)
-# - Android's is pre-filled below from google-services.json (not a secret,
-# OAuth client ids are meant to be public).
+# instead of configuring each by hand. Not actually used for the current
+# deploy (both resources were created manually instead - see
+# docs/migration-notes.md "Render is live") but kept accurate for a future
+# clean redeploy. Untested against real Render infra as a blueprint
+# specifically - double-check field names against Render's current docs
+# (render.com/docs/blueprint-spec) if it doesn't take.
 
 databases:
   - name: booksea-db
@@ -28,7 +26,7 @@ services:
           name: booksea-db
           property: connectionString
       - key: GOOGLE_OAUTH_CLIENT_IDS
-        value: "683257674665-6rho5dria0i1e0oekm3fgjkbjle7ab9a.apps.googleusercontent.com 683257674665-vl4nol9g3quldieouhhmu20ndf87fa57.apps.googleusercontent.com"
+        value: "865744272369-atobvfr5mo0s5prs63v99rg5872ehgp2.apps.googleusercontent.com"
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET

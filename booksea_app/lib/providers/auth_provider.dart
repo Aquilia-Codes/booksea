@@ -27,6 +27,16 @@ enum Status {
 // entirely once it's confirmed working end to end.
 const bool kBypassFirebaseAuth = false;
 
+// The Web OAuth client (not the Android one) - passed as serverClientId so
+// Google addresses the idToken to this client specifically. The backend
+// verifies the token's audience against this same id (GOOGLE_OAUTH_CLIENT_IDS
+// in backend/.env), which is what lets it trust the token actually came from
+// this app's sign-in flow. From a Google Cloud project created fresh for
+// this migration - fully separate from the old, now-inaccessible Firebase
+// project (see docs/migration-notes.md).
+const _googleServerClientId =
+    '865744272369-atobvfr5mo0s5prs63v99rg5872ehgp2.apps.googleusercontent.com';
+
 final UserModel _fakeUser = UserModel(
   uid: 'debug-fake-uid',
   email: 'debug@booksea.local',
@@ -143,7 +153,8 @@ class AuthProvider extends ChangeNotifier {
   // rejected idToken) throws, so the try/catch in google_login_screen.dart
   // can show it to the user - matches that screen's existing expectations.
   Future<UserModel?> signInWithGoogle() async {
-    final googleUser = await GoogleSignIn().signIn();
+    final googleUser =
+        await GoogleSignIn(serverClientId: _googleServerClientId).signIn();
     if (googleUser == null) return null;
 
     final googleAuth = await googleUser.authentication;
