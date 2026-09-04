@@ -33,7 +33,9 @@ class TypeModel {
       startTime: DateTime.parse('1970-01-01T${data['startTime']}'),
       endTime: DateTime.parse('1970-01-01T${data['endTime']}'),
       typeImage: data['typeImage'],
-      options: data['options'],
+      // JSON arrays always decode as List<dynamic>, which Dart won't
+      // implicitly narrow to List<String> - hence the explicit cast.
+      options: (data['options'] as List<dynamic>?)?.cast<String>(),
     );
   }
 
