@@ -49,6 +49,7 @@ model User {
   email        String        @unique
   nickname     String        @default("")
   phoneNumber  String?       @map("phone_number")
+  photoUrl     String?       @map("photo_url")
   companyId    String?       @map("company_id") @db.Uuid
   company      Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
   hasAccess    Boolean       @default(false) @map("has_access")

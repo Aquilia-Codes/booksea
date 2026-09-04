@@ -12,6 +12,7 @@ function serializeUser(user: NonNullable<Express.Request["user"]>, boatIds: stri
     email: user.email,
     nickname: user.nickname,
     phoneNumber: user.phoneNumber,
+    photoUrl: user.photoUrl,
     provision: Number(user.provision),
     hasAccess: user.hasAccess,
     isAdmin: user.isAdmin,

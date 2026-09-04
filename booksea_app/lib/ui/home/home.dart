@@ -153,13 +153,20 @@ class InfiniteDatePicker extends StatefulWidget {
 
 class InfiniteDatePickerState extends State<InfiniteDatePicker> {
   late DateTime selectedDate;
-  final DateTime startDate = DateTime(2025, 1, 1);
-  final DateTime endDate = DateTime(2026, 2, 1);
+  // Was hardcoded to a fixed calendar window (Jan 2025 - Feb 2026), which
+  // meant the picker silently ran out of days once "today" passed that
+  // fixed end date - there was simply nothing to scroll to. Computed
+  // relative to today instead, so the window always covers the present.
+  late final DateTime startDate;
+  late final DateTime endDate;
   late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    final today = DateTime.now();
+    startDate = DateTime(today.year - 1, today.month, today.day);
+    endDate = DateTime(today.year + 1, today.month, today.day);
     selectedDate = widget.initialDate;
     _scrollController = ScrollController(
       initialScrollOffset: _calculateInitialOffset(),

@@ -70,14 +70,17 @@ class AuthProvider extends ChangeNotifier {
   Status _status = Status.Uninitialized;
   String? _companyId;
   List<String> _boatIds = [];
-  String? _photoUrl;
   UserModel _currentUser = _emptyUser;
 
   String? get userId => _currentUser.uid.isEmpty ? null : _currentUser.uid;
   Status get status => _status;
   List<String> get boatIds => _boatIds;
   String? get companyId => _companyId;
-  String? get photoUrl => _photoUrl;
+  // Sourced from the backend (originally Google's `picture` claim, captured
+  // during POST /auth/google - see backend/src/routes/auth.ts), not from
+  // the Google Sign-In SDK directly, so it's still there after a session
+  // restore, not just right after an interactive sign-in.
+  String? get photoUrl => _currentUser.photoUrl;
   Stream<UserModel> get user => _userController.stream;
 
   AuthProvider() {
@@ -163,8 +166,6 @@ class AuthProvider extends ChangeNotifier {
       throw Exception('Google sign-in did not return an idToken');
     }
 
-    _photoUrl = googleUser.photoUrl;
-
     final tokens =
         await _client.post('/auth/google', {'idToken': idToken}) as Map<String, dynamic>;
     _client.setTokens(
@@ -190,7 +191,6 @@ class AuthProvider extends ChangeNotifier {
     _currentUser = _emptyUser;
     _companyId = null;
     _boatIds = [];
-    _photoUrl = null;
     _status = Status.Unauthenticated;
     _userController.add(_emptyUser);
     notifyListeners();

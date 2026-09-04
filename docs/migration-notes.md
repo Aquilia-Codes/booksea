@@ -324,6 +324,74 @@ same `DEVELOPER_ERROR` until that fingerprint is added too (same Android
 OAuth client supports multiple fingerprints, or add a second client) —
 not needed until a release build actually exists.
 
+## First real login, and two bugs it surfaced (2026-09-04)
+
+Google login confirmed working end to end on a physical device after the
+OAuth project fix above. Two follow-on issues, both found by actually using
+the app rather than by review:
+
+- **No self-service company creation** — never existed, not even in the old
+  Firestore app (`no_code_home.dart` only ever had "enter a code," no
+  "create a company" flow), so a fresh user has nowhere to go after signing
+  in. Added `backend/scripts/bootstrap-company.ts` (usage: email, company
+  name, company code, boat name, boat capacity) as the stand-in for the
+  admin-facing flow that doesn't exist yet (see "Open items"). Run once
+  against the live Render database (via its External connection URL,
+  temporarily set as `$env:DATABASE_URL` in the user's own terminal rather
+  than shared in chat) to grant the real user owner+admin access to a
+  "Booksea" company with a "Catamaran" boat.
+- **Profile picture missing after any session restore, not just the first
+  login.** `AuthProvider` was setting `photoUrl` from
+  `GoogleSignInAccount.photoUrl` only inside `signInWithGoogle()` - fine
+  for a fresh interactive sign-in, but `_tryRestoreSession()` (the normal
+  path on every subsequent app open, using the saved refresh token) never
+  went anywhere near `GoogleSignIn` and so never set it. Fixed at the
+  source instead of patching around it: Google's verified idToken already
+  carries a `picture` claim, so `POST /auth/google`
+  (`backend/src/routes/auth.ts`) now stores it on the user row
+  (`photo_url` column, migration `20260904000000_add_user_photo_url`),
+  `GET /me` returns it, and `AuthProvider.photoUrl` reads it from the
+  fetched `UserModel` instead of a separate ephemeral field. Works
+  regardless of which path (fresh sign-in or restore) populated the
+  session.
+
+## Pre-existing (non-migration) bugs found while testing the running app (2026-09-04)
+
+- **Date picker had a hardcoded, now-expired window.**
+  `InfiniteDatePickerState` (`lib/ui/home/home.dart`) hardcoded
+  `startDate = DateTime(2025, 1, 1)` / `endDate = DateTime(2026, 2, 1)` -
+  once real time passed the fixed end date, the horizontal date scroller
+  had nothing left to show, so "today" was literally unreachable. Not
+  introduced by the migration (untouched by the Timestamp->DateTime pass),
+  just invisible until now. Fixed to compute a rolling window (1 year
+  back/forward from whenever the widget actually initializes) instead of
+  fixed calendar dates.
+- **No self-service tour *type* creation**, same situation as company/boat
+  creation - never existed, even in the old app. The "+" add-tour button
+  needs at least one tour type to exist for the boat or its dropdown is
+  empty. Added `backend/scripts/seed-tour-types.ts` (usage: company code,
+  boat name) to seed a fixed set (Sunset/Panorama/Private, matching this
+  project's actual boat) - same pattern as `bootstrap-company.ts`.
+- **Found while building that script: a real timezone bug on the write
+  side.** `new Date('1970-01-01T18:00:00')` (no trailing `Z`) parses as
+  *local* time in JS, but Postgres's timezone-naive `time` column round-trips
+  through Prisma as UTC-anchored - so without the `Z`, every seeded time
+  came back an hour off (18:00 in, 17:00 out) on this dev machine. Fixed by
+  always constructing these as explicit UTC (`...T18:00:00Z`). Only affects
+  this seed script for now since it's the only thing that writes tour type
+  times - worth remembering if a real "create/edit tour type" endpoint gets
+  built later.
+- **`backend/tsconfig.json`'s `include` was `["src"]` only** - `scripts/`
+  was never actually covered by any `tsc` invocation, including the
+  "typecheck backend" step done after every other change so far in this
+  migration. Added `tsconfig.scripts.json` (extends the base config,
+  widens `rootDir`/`include` to cover `scripts/` too, `noEmit`) and a
+  `npm run typecheck` that runs both. Once added, `scripts/` typechecked
+  clean - the IDE-reported errors that prompted this (missing `process`,
+  possibly-null `company`/`boat`) were artifacts of the IDE analyzing those
+  files with no project config at all, not real bugs, but the coverage gap
+  itself was real and is what mattered here.
+
 `firestore_database.dart`/`firestore_service.dart`/`firestore_path.dart`
 are now fully orphaned — nothing imports them anymore — but left in
 place rather than deleted, matching the plan's phase 8 ("remove

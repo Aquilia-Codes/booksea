@@ -68,13 +68,17 @@ router.post("/google", async (req, res) => {
     return;
   }
 
+  // payload.picture is a standard OIDC claim on the verified token - stored
+  // so the avatar survives session restores, not just a fresh interactive
+  // sign-in (see docs/migration-notes.md).
   const user = await prisma.user.upsert({
     where: { googleSub: payload.sub },
-    update: { email: payload.email },
+    update: { email: payload.email, photoUrl: payload.picture },
     create: {
       googleSub: payload.sub,
       email: payload.email,
       nickname: payload.name ?? "",
+      photoUrl: payload.picture,
     },
   });
 

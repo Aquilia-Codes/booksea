@@ -10,6 +10,7 @@ class UserModel {
   final String? phoneNumber;
   final String nickname;
   final int provision;
+  final String? photoUrl;
   final List<dynamic>
       boatIds; //The ids of the boats that the user has access to
 
@@ -23,6 +24,7 @@ class UserModel {
     required this.nickname,
     required this.provision,
     this.phoneNumber,
+    this.photoUrl,
     this.boatIds = const [],
   });
 
@@ -36,6 +38,7 @@ class UserModel {
     String? phoneNumber,
     String? nickname,
     int? provision,
+    String? photoUrl,
     List<dynamic>? boatIds,
   }) {
     return UserModel(
@@ -48,6 +51,7 @@ class UserModel {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       nickname: nickname ?? this.nickname,
       provision: provision ?? this.provision,
+      photoUrl: photoUrl ?? this.photoUrl,
       boatIds: boatIds ?? this.boatIds,
     );
   }
@@ -70,6 +74,7 @@ class UserModel {
       phoneNumber: data['phoneNumber'],
       nickname: data['nickname'],
       provision: provision,
+      photoUrl: data['photoUrl'],
       boatIds: data['boatIds'] ?? [],
     );
   }
@@ -85,6 +90,7 @@ class UserModel {
       'phoneNumber': phoneNumber,
       'nickname': nickname,
       'provision': provision,
+      'photoUrl': photoUrl,
       'boatIds': boatIds,
     };
   }
