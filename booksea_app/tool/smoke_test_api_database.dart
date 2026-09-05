@@ -2,10 +2,13 @@
 // Run: dart run tool/smoke_test_api_database.dart <accessToken>
 // (get a token from `npm run seed:smoke` in backend/)
 // Not part of the app - safe to delete once phase 6 (real auth) lands.
+import 'dart:io';
+
 import 'package:booksea_app/models/group_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
 import 'package:booksea_app/services/api_client.dart';
 import 'package:booksea_app/services/api_database.dart';
+import 'package:booksea_app/services/realtime_client.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty) {
@@ -83,4 +86,10 @@ Future<void> main(List<String> args) async {
   await db.deleteTour(companyId, boatId, createdTour.id);
 
   print('--- ALL OK ---');
+
+  // getGroups above opened a real socket.io connection (see RealtimeClient) -
+  // without closing it the Dart VM has an open handle and never exits on
+  // its own, so the script would just hang here instead of finishing.
+  RealtimeClient.instance.disconnect();
+  exit(0);
 }

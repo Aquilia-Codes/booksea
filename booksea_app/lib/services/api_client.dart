@@ -47,6 +47,11 @@ class ApiClient {
 
   String? get refreshToken => _refreshToken;
 
+  // Read fresh at socket (re)connect time (see RealtimeClient's setAuthFn) -
+  // never cached, since the access token rotates independently of the
+  // socket's own connection lifecycle.
+  String? get accessToken => _accessToken;
+
   void setTokens({required String accessToken, required String refreshToken}) {
     _accessToken = accessToken;
     _refreshToken = refreshToken;

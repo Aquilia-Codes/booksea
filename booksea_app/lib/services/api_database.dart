@@ -7,6 +7,7 @@ import 'package:booksea_app/models/tour_model.dart';
 import 'package:booksea_app/models/group_model.dart';
 import 'package:booksea_app/models/type_model.dart';
 import 'package:booksea_app/services/api_client.dart';
+import 'package:booksea_app/services/realtime_client.dart';
 
 /// Drop-in replacement for the old FirestoreDatabase - same public method
 /// signatures (see docs/migration-notes.md "Route map"), backed by the
@@ -16,9 +17,10 @@ import 'package:booksea_app/services/api_client.dart';
 /// (see backend/src/lib/authz.ts).
 ///
 /// Streams (`getToursStream`, `getSumOfPriceStream`, `getGroups`,
-/// `searchTours`) are polling placeholders for now - each poll re-runs the
-/// same REST call this class already exposes as a Future. Phase 7 replaces
-/// this with socket.io push updates without changing these signatures.
+/// `searchTours`) are backed by socket.io change signals (see
+/// RealtimeClient and backend/src/lib/realtime.ts) rather than polling: the
+/// server tells us *that* something changed, and we refetch the same REST
+/// call this class already exposes as a Future - see `_realtimeStream`.
 ///
 /// Note: `companyExists` from the old FirestoreDatabase has no equivalent
 /// here by design - the backend folds that check into `POST /me/company`
@@ -29,27 +31,60 @@ class ApiDatabase {
   final String uid;
 
   final ApiClient _client = ApiClient.instance;
+  final RealtimeClient _realtime = RealtimeClient.instance;
 
-  static const _pollInterval = Duration(seconds: 8);
-
-  // `fingerprint` lets a poll skip re-emitting when nothing actually
-  // changed - without it, every tick rebuilds the StreamBuilder with a
-  // structurally-identical-but-new list/map, which is what caused the
-  // visible "blink" on every refresh even when nothing new happened.
-  Stream<T> _pollStream<T>(
-    Future<T> Function() fetch, {
+  // `fingerprint` lets a refetch skip re-emitting when nothing actually
+  // changed - without it, a redundant `*:changed` signal (three fire
+  // together on a group edit, see tours.ts/groups.ts) would rebuild the
+  // StreamBuilder with a structurally-identical-but-new list/map, which is
+  // what caused a visible "blink" back when this was plain polling.
+  //
+  // `join`/`leave` manage the socket room backing `changes` (see
+  // RealtimeClient - reference-counted, since e.g. home.dart's tour list
+  // and price summary both watch the same boat at once). `onConnected` is
+  // included as a second trigger alongside `changes` because a signal fired
+  // while this socket was briefly disconnected is simply lost - refetching
+  // on every (re)connect, not just on an explicit change signal, is what
+  // catches up on anything missed.
+  Stream<T> _realtimeStream<T>({
+    required Future<bool> Function() join,
+    required void Function() leave,
+    required Stream<void> changes,
+    required Future<T> Function() fetch,
     String Function(T value)? fingerprint,
-  }) async* {
+  }) {
+    late StreamController<T> controller;
+    StreamSubscription<void>? changesSub;
+    StreamSubscription<void>? connectedSub;
     String? lastFingerprint;
-    while (true) {
-      final value = await fetch();
-      final fp = fingerprint?.call(value);
-      if (fingerprint == null || fp != lastFingerprint) {
-        lastFingerprint = fp;
-        yield value;
+
+    Future<void> refetch() async {
+      try {
+        final value = await fetch();
+        final fp = fingerprint?.call(value);
+        if (fingerprint == null || fp != lastFingerprint) {
+          lastFingerprint = fp;
+          controller.add(value);
+        }
+      } catch (e, st) {
+        controller.addError(e, st);
       }
-      await Future.delayed(_pollInterval);
     }
+
+    controller = StreamController<T>(
+      onListen: () async {
+        changesSub = changes.listen((_) => refetch());
+        connectedSub = _realtime.onConnected.listen((_) => refetch());
+        await join();
+        await refetch();
+      },
+      onCancel: () async {
+        await changesSub?.cancel();
+        await connectedSub?.cancel();
+        leave();
+      },
+    );
+    return controller.stream;
   }
 
   String _seg(String value) => Uri.encodeComponent(value);
@@ -90,30 +125,39 @@ class ApiDatabase {
         .toList();
   }
 
-  // getSumOfPriceStream -> GET /boats/:id/tours/summary (polling)
+  // getSumOfPriceStream -> GET /boats/:id/tours/summary (socket.io push)
   Stream<Map<String, dynamic>> getSumOfPriceStream(
       String companyId, String boatId, DateTime startTime, DateTime endTime) {
-    return _pollStream(() async {
-      final data =
-          await _client.get('/boats/${_seg(boatId)}/tours/summary', query: {
-        'from': startTime.toUtc().toIso8601String(),
-        'to': endTime.toUtc().toIso8601String(),
-      }) as Map<String, dynamic>;
-      return {
-        'totalPrice': (data['totalPrice'] as num).toDouble(),
-        'totalProvision': (data['totalProvision'] as num).toDouble(),
-      };
-    }, fingerprint: (value) => jsonEncode(value));
+    return _realtimeStream(
+      join: () => _realtime.joinBoat(boatId),
+      leave: () => _realtime.leaveBoat(boatId),
+      changes: _realtime.summaryChanged,
+      fetch: () async {
+        final data =
+            await _client.get('/boats/${_seg(boatId)}/tours/summary', query: {
+          'from': startTime.toUtc().toIso8601String(),
+          'to': endTime.toUtc().toIso8601String(),
+        }) as Map<String, dynamic>;
+        return {
+          'totalPrice': (data['totalPrice'] as num).toDouble(),
+          'totalProvision': (data['totalProvision'] as num).toDouble(),
+        };
+      },
+      fingerprint: (value) => jsonEncode(value),
+    );
   }
 
   static String _fingerprintTours(List<TourModel> tours) =>
       jsonEncode(tours.map((t) => t.toMap()).toList());
 
-  // getToursStream -> GET /boats/:id/tours (polling)
+  // getToursStream -> GET /boats/:id/tours (socket.io push)
   Stream<List<TourModel>> getToursStream(
       String companyId, String boatId, DateTime startTime, DateTime endTime) {
-    return _pollStream(
-      () => getTours(companyId, boatId, startTime, endTime),
+    return _realtimeStream(
+      join: () => _realtime.joinBoat(boatId),
+      leave: () => _realtime.leaveBoat(boatId),
+      changes: _realtime.toursChanged,
+      fetch: () => getTours(companyId, boatId, startTime, endTime),
       fingerprint: _fingerprintTours,
     );
   }
@@ -164,19 +208,24 @@ class ApiDatabase {
     await _client.delete('/groups/${_seg(groupId)}');
   }
 
-  // getGroups -> GET /tours/:id/groups (polling)
+  // getGroups -> GET /tours/:id/groups (socket.io push)
   Stream<List<GroupModel>> getGroups(
       String companyId, String boatId, String tourId) {
-    return _pollStream(() async {
-      final data =
-          await _client.get('/tours/${_seg(tourId)}/groups') as List<dynamic>;
-      return data
-          .map((e) =>
-              GroupModel.fromMap(e as Map<String, dynamic>, e['id'] as String))
-          .toList();
-    },
-        fingerprint: (groups) =>
-            jsonEncode(groups.map((g) => g.toMap()).toList()));
+    return _realtimeStream(
+      join: () => _realtime.joinTour(tourId),
+      leave: () => _realtime.leaveTour(tourId),
+      changes: _realtime.groupsChanged,
+      fetch: () async {
+        final data = await _client.get('/tours/${_seg(tourId)}/groups')
+            as List<dynamic>;
+        return data
+            .map((e) => GroupModel.fromMap(
+                e as Map<String, dynamic>, e['id'] as String))
+            .toList();
+      },
+      fingerprint: (groups) =>
+          jsonEncode(groups.map((g) => g.toMap()).toList()),
+    );
   }
 
   // getGroup -> GET /groups/:id
@@ -231,7 +280,10 @@ class ApiDatabase {
 
   /* Search section */
 
-  // searchTours -> GET /boats/:id/tours/search (polling)
+  // searchTours -> GET /boats/:id/tours/search (socket.io push)
+  // Scoped to the same 'boat:<id>' room as getToursStream/getSumOfPriceStream
+  // - the search itself is just a filtered view over that boat's tours, so
+  // any tour change on the boat is exactly what should trigger a re-search.
   Stream<List<TourModel>> searchTours(
       String companyId,
       String boatId,
@@ -239,18 +291,24 @@ class ApiDatabase {
       DateTime startTime,
       DateTime endTime,
       int count) {
-    return _pollStream(() async {
-      final data =
-          await _client.get('/boats/${_seg(boatId)}/tours/search', query: {
-        'types': tourTypeNames.join(','),
-        'from': startTime.toUtc().toIso8601String(),
-        'to': endTime.toUtc().toIso8601String(),
-        'seats': count.toString(),
-      }) as List<dynamic>;
-      return data
-          .map((e) =>
-              TourModel.fromMap(e as Map<String, dynamic>, e['id'] as String))
-          .toList();
-    }, fingerprint: _fingerprintTours);
+    return _realtimeStream(
+      join: () => _realtime.joinBoat(boatId),
+      leave: () => _realtime.leaveBoat(boatId),
+      changes: _realtime.toursChanged,
+      fetch: () async {
+        final data =
+            await _client.get('/boats/${_seg(boatId)}/tours/search', query: {
+          'types': tourTypeNames.join(','),
+          'from': startTime.toUtc().toIso8601String(),
+          'to': endTime.toUtc().toIso8601String(),
+          'seats': count.toString(),
+        }) as List<dynamic>;
+        return data
+            .map((e) => TourModel.fromMap(
+                e as Map<String, dynamic>, e['id'] as String))
+            .toList();
+      },
+      fingerprint: _fingerprintTours,
+    );
   }
 }

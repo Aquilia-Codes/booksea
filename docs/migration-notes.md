@@ -811,6 +811,66 @@ longer closes after the first digit. The `[KBDEBUG]` diagnostic logging
 (build counter, focus/text listeners) has been removed from
 `_GroupAddPopupState` now that the bug is resolved.
 
+## Phase 7: Flutter connected to socket.io, polling removed (2026-09-05)
+
+The backend half of "Realtime (socket.io)" above (`sockets.ts`, `lib/realtime.ts`,
+the emit calls in every mutating route) was already built and already
+deployed to Render as part of the initial backend scaffold - confirmed via
+`git log` showing it in the very first backend commit, with local `main`
+matching `origin/main`. So this phase was entirely client-side: replacing
+`ApiDatabase`'s `_pollStream` (a `while(true)` loop refetching every 8s
+regardless of whether anything changed) with a real push path.
+
+Added `socket_io_client: ^3.1.6` and a new `RealtimeClient`
+(`lib/services/realtime_client.dart`) wrapping the one Socket.IO connection:
+
+- Connects with `OptionBuilder().setAuthFn((cb) => cb({'token': ...}))` -
+  `setAuthFn`, not `setAuth`, so the access token is read fresh on every
+  (re)connection attempt rather than baked in once, since it rotates
+  independently (see `ApiClient._refreshOnce`).
+- `joinBoat`/`joinTour`/`leaveBoat`/`leaveTour` are reference-counted, not a
+  plain join/leave - home.dart watches a boat's tour list and its price
+  summary at the same time, both scoped to the same `boat:<id>` room, so one
+  of those two leaving must not evict the other still listening.
+- Rooms don't survive a reconnect (a new server-side socket session gets a
+  fresh id), so `onConnect` rejoins every currently-tracked room, and
+  exposes its own `onConnected` stream as a second refetch trigger alongside
+  the named `*:changed` events - a signal fired while briefly disconnected
+  is simply lost otherwise, and this is what catches up on it.
+- `disconnect()` is called from `AuthProvider.signOut()` so a stale,
+  now-unauthenticated socket doesn't linger (and so the next signed-in user
+  doesn't inherit the previous session's joined rooms).
+
+`ApiDatabase` gained one generic `_realtimeStream<T>` helper (join room on
+`StreamController.onListen`, refetch on either the `changes` event or
+`onConnected`, leave room on `onCancel`, same fingerprint-based dedup the
+old `_pollStream` used) and all four stream methods
+(`getSumOfPriceStream`/`getToursStream`/`getGroups`/`searchTours`) were
+rewritten on top of it with **no signature changes** -
+`searchTours` doesn't map to its own room (it's an ad-hoc filtered query),
+so it reuses the boat's `tours:changed` as a proxy trigger instead.
+
+Because `onListen`/`onCancel` line up exactly with a `StreamBuilder`
+subscribing/disposing, and every call site already caches its `Stream<T>`
+in `initState()` (from the polling-era rebuild fixes), **zero changes were
+needed in home.dart or search_and_filter.dart** - the UI layer has no idea
+the transport underneath changed from polling to push.
+
+Verified against a local backend (Postgres running locally, `npm run dev`)
+with two throwaway checks: the existing `tool/smoke_test_api_database.dart`
+(exercises the initial join+fetch path via `getGroups(...).first` - also
+needed a `RealtimeClient.instance.disconnect(); exit(0);` added at the end,
+since an open socket connection otherwise keeps the Dart VM alive and the
+script never exits) and a temporary script that subscribed to `getGroups`
+as a live stream, waited for the initial empty emission, then created a
+group through a *separate* REST call and confirmed a second emission
+arrived within 5 seconds purely from the socket signal - proving the push
+path works, not just the initial fetch. That script was deleted after use.
+
+Not yet done: trying this in the actual running app on a device/emulator
+(only the Dart-level API surface has been verified so far, not the
+`StreamBuilder`-driven UI actually re-rendering on a push).
+
 ## Open items (need user input)
 
 - Confirm the multi-owner recommendation above (or pick single-owner) before

@@ -7,6 +7,7 @@ import 'package:booksea_app/models/user_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:booksea_app/services/api_client.dart';
+import 'package:booksea_app/services/realtime_client.dart';
 
 enum Status {
   Uninitialized,
@@ -180,6 +181,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     final refreshToken = _client.refreshToken;
     _client.clearTokens();
+    RealtimeClient.instance.disconnect();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_refreshTokenPrefsKey);
     if (refreshToken != null) {
