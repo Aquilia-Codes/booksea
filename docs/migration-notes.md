@@ -634,8 +634,48 @@ double-checking each one by hand rather than trusting `tsc --noEmit` alone.
   `.toUtc()` fix), createGroup (with `paymentStatus: 'paid'`, exercising
   this fix), arrival update, and cleanup all passed end to end.
 
+## UI fixes and a new feature, group-creation testing round 2 (2026-09-04)
+
+- **Phone field keyboard-closing bug: only partially fixed.** The
+  `FocusNode` fix (see above) didn't fully resolve it — user reports the
+  keyboard still closes after the first digit, but the field is then usable
+  normally after tapping back in. Deferred rather than continuing to guess
+  without a live device to inspect (added to Open items below) — not a
+  blocker, just an annoyance for now.
+- **"Free spaces" pill overflowing once a tour has any arrivals.** In
+  `home.dart`'s tour card, `tour.arrived > 0` switches the capacity
+  indicator from one pill (`filled / capacity`) to *two* pills side by side
+  (`arrived / filled` and `capacity - filled`) inside the same fixed
+  `Expanded(flex: 1)` space that only ever fit one - the two pills plus
+  their padding and gap don't fit, causing a classic Flutter "RenderFlex
+  overflowed by N pixels" error. `search_and_filter.dart` has the same
+  `arrived > 0` branch but only ever shows one pill there, so it wasn't
+  affected. Fixed by wrapping the two-pill `Row` in
+  `FittedBox(fit: BoxFit.scaleDown)`, which shrinks the pills to fit
+  available space instead of overflowing - guaranteed not to error
+  regardless of exact screen width/font metrics.
+- **New feature: overbooking is now allowed, with confirmation.** Boats
+  routinely get booked a little over nominal capacity in practice (smaller
+  people, kids not taking a full seat) - the hard capacity block on group
+  creation/editing didn't reflect how this is actually used. Added a
+  confirmation popup ("This would put the tour at X / Y. Add the group
+  anyway?") that appears only when the count would exceed capacity; on
+  confirmation the request is sent with a new `allowOverbook: true` flag.
+  Backend (`createGroupBody` in `tours.ts`) still rejects overbooking by
+  default - `allowOverbook` has to be explicitly set, so this can't happen
+  by accident, only by an informed choice at the point of booking. Applied
+  to both create and edit group flows, in both `home.dart` and
+  `search_and_filter.dart` (new shared `_confirmOverbook` helper per file).
+  Verified via curl: the same request that 409s without the flag succeeds
+  (201) with it.
+
 ## Open items (need user input)
 
+- **Phone number field still briefly loses keyboard focus** on the first
+  digit typed (tapping back in works fine after). The `FocusNode` fix above
+  didn't fully resolve it; needs a live device to actually inspect what
+  Flutter is doing on that first rebuild, which wasn't available while
+  diagnosing this. Not blocking - just an annoyance.
 - Confirm the multi-owner recommendation above (or pick single-owner) before
   it's built into the schema/`companies`/`users` routes.
 - Who can grant `hasAccess`/`isAdmin`/boat assignments day-to-day — a real

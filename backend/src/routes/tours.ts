@@ -77,6 +77,11 @@ const createGroupBody = z.object({
   mobileNumber: z.string().default(""),
   countryCode: z.string().default(""),
   countryDialogCode: z.string().default(""),
+  // In practice boats get booked a little over nominal capacity (smaller
+  // people, kids not taking a full seat, etc.) - the client confirms this
+  // with the booker via a popup and then sends this flag to bypass the
+  // check below, rather than the check being a hard limit.
+  allowOverbook: z.boolean().default(false),
 });
 
 // createGroup -> POST /tours/:id/groups
@@ -84,7 +89,7 @@ router.post(
   "/:id/groups",
   wrap(async (req, res) => {
     const tour = await getAccessibleTour(req.user!, req.params.id);
-    const { countryDialogCode, ...rest } = createGroupBody.parse(req.body);
+    const { countryDialogCode, allowOverbook, ...rest } = createGroupBody.parse(req.body);
     const bookerId = req.user!.id;
 
     const group = await prisma.$transaction(async (tx) => {
@@ -101,7 +106,7 @@ router.post(
         _sum: { adultCount: true },
       });
       const filled = sum._sum.adultCount ?? 0;
-      if (filled + rest.adultCount > locked.capacity) {
+      if (filled + rest.adultCount > locked.capacity && !allowOverbook) {
         throw new HttpError(409, "Group capacity exceeds tour capacity.");
       }
 

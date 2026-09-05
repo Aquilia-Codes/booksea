@@ -85,14 +85,14 @@ class ApiDatabase {
       'to': endTime.toUtc().toIso8601String(),
     }) as List<dynamic>;
     return data
-        .map((e) => TourModel.fromMap(
-            e as Map<String, dynamic>, e['id'] as String))
+        .map((e) =>
+            TourModel.fromMap(e as Map<String, dynamic>, e['id'] as String))
         .toList();
   }
 
   // getSumOfPriceStream -> GET /boats/:id/tours/summary (polling)
-  Stream<Map<String, dynamic>> getSumOfPriceStream(String companyId,
-      String boatId, DateTime startTime, DateTime endTime) {
+  Stream<Map<String, dynamic>> getSumOfPriceStream(
+      String companyId, String boatId, DateTime startTime, DateTime endTime) {
     return _pollStream(() async {
       final data =
           await _client.get('/boats/${_seg(boatId)}/tours/summary', query: {
@@ -139,10 +139,16 @@ class ApiDatabase {
   /* Group section */
 
   // createGroup -> POST /tours/:id/groups
+  // allowOverbook: set once the booker has confirmed a capacity warning
+  // popup (boats routinely get booked a little over nominal capacity in
+  // practice) - the backend still blocks accidental overbooking by default.
   Future<GroupModel> createGroup(
-      String companyId, String boatId, String tourId, GroupModel group) async {
-    final data = await _client.post(
-        '/tours/${_seg(tourId)}/groups', group.toMap()) as Map<String, dynamic>;
+      String companyId, String boatId, String tourId, GroupModel group,
+      {bool allowOverbook = false}) async {
+    final data = await _client.post('/tours/${_seg(tourId)}/groups', {
+      ...group.toMap(),
+      'allowOverbook': allowOverbook,
+    }) as Map<String, dynamic>;
     return GroupModel.fromMap(data, data['id'] as String);
   }
 
@@ -165,10 +171,12 @@ class ApiDatabase {
       final data =
           await _client.get('/tours/${_seg(tourId)}/groups') as List<dynamic>;
       return data
-          .map((e) => GroupModel.fromMap(
-              e as Map<String, dynamic>, e['id'] as String))
+          .map((e) =>
+              GroupModel.fromMap(e as Map<String, dynamic>, e['id'] as String))
           .toList();
-    }, fingerprint: (groups) => jsonEncode(groups.map((g) => g.toMap()).toList()));
+    },
+        fingerprint: (groups) =>
+            jsonEncode(groups.map((g) => g.toMap()).toList()));
   }
 
   // getGroup -> GET /groups/:id
@@ -182,8 +190,8 @@ class ApiDatabase {
   // updateGroupHasArrived -> PATCH /groups/:id/arrival
   Future<void> updateGroupHasArrived(String companyId, String boatId,
       String tourId, bool hasArrived, GroupModel group) async {
-    await _client.patch(
-        '/groups/${_seg(group.id)}/arrival', {'hasArrived': hasArrived});
+    await _client
+        .patch('/groups/${_seg(group.id)}/arrival', {'hasArrived': hasArrived});
   }
 
   /* Type section */
@@ -197,20 +205,20 @@ class ApiDatabase {
     final tourTypesData = data['tourTypes'] as List<dynamic>;
     return {
       'tourTypes': tourTypesData
-          .map((e) => TypeModel.fromMap(
-              e as Map<String, dynamic>, e['id'] as String))
+          .map((e) =>
+              TypeModel.fromMap(e as Map<String, dynamic>, e['id'] as String))
           .toList(),
-      'boatInfo': boatInfoData != null
-          ? BoatModel.fromMap(boatInfoData, boatId)
-          : null,
+      'boatInfo':
+          boatInfoData != null ? BoatModel.fromMap(boatInfoData, boatId) : null,
     };
   }
 
   // getTypeInfo -> GET /boats/:id/tour-types/:name
   Future<TypeModel> getTypeInfo(
       String companyId, String boatId, String typeName) async {
-    final data = await _client.get(
-        '/boats/${_seg(boatId)}/tour-types/${_seg(typeName)}') as Map<String, dynamic>;
+    final data =
+        await _client.get('/boats/${_seg(boatId)}/tour-types/${_seg(typeName)}')
+            as Map<String, dynamic>;
     return TypeModel.fromMap(data, data['id'] as String);
   }
 
@@ -240,8 +248,8 @@ class ApiDatabase {
         'seats': count.toString(),
       }) as List<dynamic>;
       return data
-          .map((e) => TourModel.fromMap(
-              e as Map<String, dynamic>, e['id'] as String))
+          .map((e) =>
+              TourModel.fromMap(e as Map<String, dynamic>, e['id'] as String))
           .toList();
     }, fingerprint: _fingerprintTours);
   }

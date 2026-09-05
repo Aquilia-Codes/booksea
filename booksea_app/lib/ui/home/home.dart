@@ -17,6 +17,34 @@ import 'package:url_launcher/url_launcher.dart';
 String _titleCase(String value) =>
     value.isEmpty ? value : value[0].toUpperCase() + value.substring(1);
 
+// Boats routinely get booked a little over nominal capacity in practice
+// (smaller people, kids not taking a full seat, etc.), so overbooking isn't
+// blocked outright - the booker just has to confirm it here first. The
+// backend still rejects it by default unless this confirmation sets the
+// allowOverbook flag on the request.
+Future<bool> _confirmOverbook(BuildContext context,
+    {required int filled, required int capacity}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Over capacity'),
+      content: Text(
+          'This would put the tour at $filled / $capacity. Add the group anyway?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Add anyway'),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -41,8 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final firestoreDatabase =
-        Provider.of<ApiDatabase>(context, listen: false);
+    final firestoreDatabase = Provider.of<ApiDatabase>(context, listen: false);
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -910,54 +937,61 @@ class TourCard extends StatelessWidget {
                       Expanded(
                         flex: 1,
                         child: tour.arrived > 0
-                            ? Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                        vertical: 0, horizontal: 15.0),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                      borderRadius: BorderRadius.circular(25.0),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${tour.arrived} / ${tour.filled}',
-                                        textAlign: TextAlign.end,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimary,
+                            ? FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 0, horizontal: 15.0),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        borderRadius:
+                                            BorderRadius.circular(25.0),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${tour.arrived} / ${tour.filled}',
+                                          textAlign: TextAlign.end,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                        vertical: 0, horizontal: 15),
-                                    decoration: BoxDecoration(
-                                      color: Color(0xFFfbb040),
-                                      borderRadius: BorderRadius.circular(20.0),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${tour.capacity - tour.filled}',
-                                        textAlign: TextAlign.end,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimary,
+                                    SizedBox(width: 10),
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 0, horizontal: 15),
+                                      decoration: BoxDecoration(
+                                        color: Color(0xFFfbb040),
+                                        borderRadius:
+                                            BorderRadius.circular(20.0),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${tour.capacity - tour.filled}',
+                                          textAlign: TextAlign.end,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  )
-                                ],
+                                    )
+                                  ],
+                                ),
                               )
                             : Text(
                                 '${tour.filled} / ${tour.capacity}',
@@ -988,21 +1022,9 @@ class TourCard extends StatelessWidget {
                   height: 20, // Set a fixed height for the row
                   child: Center(
                     child: Text(
-                        tour.startTime
-                                    
-                                    .toLocal()
-                                    .toString()
-                                    .split(' ')[0] ==
-                                tour.endTime
-                                    
-                                    .toLocal()
-                                    .toString()
-                                    .split(' ')[0]
-                            ? tour.startTime
-                                
-                                .toLocal()
-                                .toString()
-                                .split(' ')[0]
+                        tour.startTime.toLocal().toString().split(' ')[0] ==
+                                tour.endTime.toLocal().toString().split(' ')[0]
+                            ? tour.startTime.toLocal().toString().split(' ')[0]
                             : '${tour.startTime.day}.${tour.startTime.month}.${tour.startTime.year}. - ${tour.endTime.day}.${tour.endTime.month}.${tour.endTime.year}.',
                         style: TextStyle(
                             fontSize: 16,
@@ -1182,8 +1204,7 @@ class _TourPopupState extends State<TourPopup> {
                       ),
                     ),
                     Text(
-                        widget.tour.startTime.day ==
-                                    widget.tour.endTime.day &&
+                        widget.tour.startTime.day == widget.tour.endTime.day &&
                                 widget.tour.startTime.month ==
                                     widget.tour.endTime.month &&
                                 widget.tour.startTime.year ==
@@ -1911,45 +1932,47 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
         countryCode: _countryCodeController.text,
         countryDialogCode: _countryDialogCodeController.text,
       );
-      if (widget.tour.filled + group.adultCount <= widget.tour.capacity) {
-        try {
-          // Add the group to the database
-          GroupModel createdGroup = (await widget.firestoreDatabase.createGroup(
-            widget.companyId,
-            widget.boatId,
-            widget.tour.id,
-            group,
-          ));
+      final wouldBeFilled = widget.tour.filled + group.adultCount;
+      final overBy = wouldBeFilled - widget.tour.capacity;
+      var proceed = true;
+      if (overBy > 0) {
+        proceed = await _confirmOverbook(
+            context, filled: wouldBeFilled, capacity: widget.tour.capacity);
+      }
+      if (!context.mounted || !proceed) return;
 
-          if (!context.mounted) return;
-          // Close the add group dialog
-          Navigator.of(context).pop();
-          // Close the tour dialog
-          Navigator.of(context).pop();
-          // Navigate to QR image screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => QRImage(
-                createdGroup,
-                widget.companyId,
-                widget.boatId,
-                widget.tour,
-              ),
+      try {
+        // Add the group to the database
+        GroupModel createdGroup = (await widget.firestoreDatabase.createGroup(
+          widget.companyId,
+          widget.boatId,
+          widget.tour.id,
+          group,
+          allowOverbook: overBy > 0,
+        ));
+
+        if (!context.mounted) return;
+        // Close the add group dialog
+        Navigator.of(context).pop();
+        // Close the tour dialog
+        Navigator.of(context).pop();
+        // Navigate to QR image screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => QRImage(
+              createdGroup,
+              widget.companyId,
+              widget.boatId,
+              widget.tour,
             ),
-          );
-        } catch (e) {
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to create group'),
-            ),
-          );
-        }
-      } else {
+          ),
+        );
+      } catch (e) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Group capacity exceeds tour capacity'),
+            content: Text('Failed to create group'),
           ),
         );
       }
@@ -2230,8 +2253,8 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
     // The API's enum is lowercase ("paid"); the dropdown displays Title
     // Case ("Paid") and its items must match exactly or the dropdown
     // throws/shows blank.
-    _paymentStatusController = TextEditingController(
-        text: _titleCase(widget.group.paymentStatus));
+    _paymentStatusController =
+        TextEditingController(text: _titleCase(widget.group.paymentStatus));
     _mobileNumberController =
         TextEditingController(text: widget.group.mobileNumber);
     _countryCodeController =
@@ -2262,36 +2285,36 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
     });
   }
 
-  void saveGroup() {
+  void saveGroup() async {
     if (_isButtonEnabled) {
       final adultCount = int.tryParse(_adultCountController.text) ?? 0;
       final childCount = int.tryParse(_childCountController.text) ?? 0;
 
-      if (widget.tour.filled - widget.group.adultCount + adultCount <=
-          widget.tour.capacity) {
-        final updatedGroup = GroupModel(
-          id: widget.group.id,
-          groupName: _groupNameController.text,
-          adultCount: adultCount,
-          childCount: childCount,
-          price: double.tryParse(_priceController.text) ?? 0.0,
-          paymentStatus: _paymentStatusController.text.toLowerCase(),
-          bookerId: widget.group.bookerId,
-          mobileNumber: _mobileNumberController.text,
-          countryCode: _countryCodeController.text,
-          countryDialogCode: _countryDialogCodeController.text,
-          hasArrived: widget.group.hasArrived,
-        );
-        widget.firestoreDatabase.updateGroup(widget.companyId, widget.boatId,
-            widget.tourId, widget.group.id, updatedGroup);
-        Navigator.of(context).pop();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Group capacity exceeds tour capacity'),
-          ),
-        );
+      final wouldBeFilled =
+          widget.tour.filled - widget.group.adultCount + adultCount;
+      var proceed = true;
+      if (wouldBeFilled > widget.tour.capacity) {
+        proceed = await _confirmOverbook(context,
+            filled: wouldBeFilled, capacity: widget.tour.capacity);
       }
+      if (!context.mounted || !proceed) return;
+
+      final updatedGroup = GroupModel(
+        id: widget.group.id,
+        groupName: _groupNameController.text,
+        adultCount: adultCount,
+        childCount: childCount,
+        price: double.tryParse(_priceController.text) ?? 0.0,
+        paymentStatus: _paymentStatusController.text.toLowerCase(),
+        bookerId: widget.group.bookerId,
+        mobileNumber: _mobileNumberController.text,
+        countryCode: _countryCodeController.text,
+        countryDialogCode: _countryDialogCodeController.text,
+        hasArrived: widget.group.hasArrived,
+      );
+      widget.firestoreDatabase.updateGroup(widget.companyId, widget.boatId,
+          widget.tourId, widget.group.id, updatedGroup);
+      Navigator.of(context).pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
