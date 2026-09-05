@@ -669,13 +669,150 @@ double-checking each one by hand rather than trusting `tsc --noEmit` alone.
   Verified via curl: the same request that 409s without the flag succeeds
   (201) with it.
 
+## Root-caused the keyboard bug: a Future recreated on every keystroke (2026-09-04)
+
+Two earlier attempts (external `FocusNode`, disabling `IntlPhoneField`'s
+autovalidate) didn't fully fix it, which was the right signal to stop
+patching the field itself and look at what else was happening around it.
+Found a real, independently serious bug in all four group forms (create +
+edit, in both `home.dart` and `search_and_filter.dart`): the price field's
+`FutureBuilder` called `widget.firestoreDatabase.getTypeInfo(...)` **directly
+inline** as its `future:` argument. A `StatefulWidget`'s `build()` runs on
+every `setState()` - which every keystroke in *any* field in the form
+triggers (via `_updateButtonState`) - so this created a brand new `Future`
+(and fired a brand new network request) on every keystroke across the whole
+form, not just the phone field. `FutureBuilder` treats a new future
+identity as needing to reset to its loading state, so the price field's
+slot in the `Column` was flipping between a real `TextField` and a bare
+`Text('')` continuously while typing anywhere in the form - a genuine
+structural change to a sibling element on every keystroke. That kind of
+churn during an active IME session is a very plausible explanation for why
+the keyboard closed specifically on that first real interaction. It was
+also a bug in its own right regardless of the keyboard symptom: constant
+redundant network requests, and `_adultCountController.addListener(...)` /
+`_childCountController.addListener(...)` being called again inside the
+`builder` on every rebuild, permanently stacking duplicate listeners that
+were never removed.
+
+Fixed by caching the future once in `initState()` (matching the pattern
+`HomeScreen` already used correctly elsewhere in the same file) and moving
+the price-calculation listeners to be attached exactly once, reading from
+state fields (`_pricePerAdult`/`_pricePerChild`) populated the first time
+the cached future resolves, instead of re-deriving everything from
+`snapshot.data` and re-attaching listeners on every `builder` call.
+Verified: `flutter analyze` clean, full smoke-test script still passes
+(API layer is unaffected by this - it's purely a widget rebuild-behavior
+fix). This did **not** fix the keyboard symptom either - see below - but
+was still a real, worthwhile fix on its own merits (the redundant network
+spam and the leaking listeners were genuine bugs).
+
+## The keyboard bug investigation, continued: live device debugging (2026-09-04)
+
+Rather than keep guessing, added temporary diagnostic logging (`[KBDEBUG]`
+tags: a build counter, and listeners printing `FocusNode.hasFocus` and the
+controller's text on every change) and watched `flutter run`'s console live
+against the physical device while the user reproduced the bug. This
+produced hard evidence instead of more speculation, and it overturned the
+starting assumption: **`FocusNode.hasFocus` never once flipped to `false`
+during the failure.** The bug was never a Flutter-level focus loss at all -
+every one of the fixes up to this point (external `FocusNode`, disabled
+autovalidate, the cached-future fix above) was aimed at the wrong layer.
+The actual signal in the log was Android's own IME tracker:
+`onRequestHide ... reason HIDE_SOFT_INPUT_BY_INSETS_API` firing shortly
+after the first keystroke, followed by `onHidden` - the *operating system*
+hiding the keyboard on its own initiative, not Flutter dropping focus.
+
+This reframing led to two more real bugs, found by reading exactly what
+else was happening around that log line:
+
+1. **`openTourPopup` (both files) showed `TourPopup` via `showDialog`,
+   and `openGroupAddPopup` shows the group form via a *second*, nested
+   `showDialog` on top of it while the first stays mounted underneath.**
+   Flutter's `Dialog`/`AlertDialog` automatically pads itself by
+   `MediaQuery.viewInsets.bottom` to stay clear of *any* open keyboard -
+   including one belonging to a completely different, layered-on-top
+   dialog. `TourPopup`'s dialog has a fixed-size `SizedBox` (60% of full
+   screen height, computed once, never intended to change), so when it
+   tried to shrink for a keyboard it would never itself display, its
+   content overflowed - confirmed directly in the log
+   (`RenderFlex overflowed by 1.2 pixels`, then 35 on a later attempt) at
+   the exact moment the nested dialog's keyboard was animating in. First
+   fix attempt (`resizeToAvoidBottomInset: false` on the *inner* Scaffold)
+   was based on a wrong assumption about which layer was shrinking and
+   had zero effect - the actual fix had to go one level up, wrapping the
+   dialog's content in `MediaQuery.removeViewInsets(removeBottom: true)`
+   in `openTourPopup` itself. This did eliminate the overflow exception.
+2. **`GroupDataStream` (both files) had the exact same "future recreated
+   in `build()`" bug as the price field, but for the *existing groups
+   list* shown on `TourPopup` itself** - `getGroups(...)` was called
+   inline as the `StreamBuilder`'s `stream:` argument, in a
+   `StatelessWidget`, so it fired a fresh network request and reset to a
+   loading state on every rebuild of the underlying `TourPopup` route -
+   which the nested dialog's keystrokes were still forcing, independent
+   of the `MediaQuery` fix above (a `print(snapshot.data)` left in this
+   code made the churn directly visible in the log as a repeating
+   `[Instance of 'GroupModel', ...]`). Fixed by converting
+   `GroupDataStream` to a `StatefulWidget` and caching the stream in
+   `initState()`, same pattern as the price field fix.
+
+**Neither of these fixed the actual keyboard symptom either** - confirmed
+live, `HIDE_SOFT_INPUT_BY_INSETS_API` still fires right after the first
+character, even with both applied. At this point the working hypothesis
+changed: the test device's logs are full of `MiuiProcessManagerServiceStub`
+and `HandWritingStubImpl` lines, meaning it's running **MIUI** (Xiaomi's
+Android skin), which has documented community reports of exactly this
+shape of bug - a keyboard that opens and immediately closes again on the
+first interaction - tied to MIUI's own "secure keyboard" input handling or
+its fullscreen-gesture ("knuckle") features, not to any particular app.
+Asked the user to check Settings → Additional settings → Languages & Input
+for a secure-keyboard toggle, and Settings → Additional settings →
+Gestures for knuckle features, and disable both to test. **Unconfirmed as
+of this note** - if disabling either setting fixes it, this was never an
+app bug to begin with; if not, the investigation continues. Either way,
+the four bugs found along the way (redundant `getTypeInfo`/`getGroups`
+network calls with leaking listeners, and the dialog-level `MediaQuery`
+overflow) were real and are staying fixed regardless of how the keyboard
+question resolves.
+
+The `[KBDEBUG]` diagnostic logging (build counters, focus/text listeners)
+is still in `home.dart`'s `_GroupAddPopupState` as of this note - remove it
+once the keyboard question is resolved one way or the other.
+
+## The keyboard bug investigation, concluded: it was never MIUI (2026-09-05)
+
+The MIUI/"secure keyboard" hypothesis above turned out to be a dead end. The
+user made the observation that broke the case open: the group-add form has
+several other numeric-keypad fields (Adult Count, Child Count, Price - plain
+`TextField`s with `keyboardType: TextInputType.number`), and *none* of them
+exhibit the bug - only the Mobile Number field does. A device/OS/IME-app-wide
+quirk would affect every numeric field equally, so the bug had to be specific
+to something about the `IntlPhoneField` widget itself, not the platform.
+
+Re-reading the package source
+(`intl_phone_field-3.2.0/lib/intl_phone_field.dart`) with that framing
+immediately found it: the internal `TextFormField` is built with
+`autofillHints: widget.disableAutoFillHints ? null : [AutofillHints.telephoneNumberNational]`,
+and `disableAutoFillHints` defaults to `false`. None of the plain `TextField`s
+elsewhere in the form set any `autofillHints` at all - so the phone field was
+the only one opted into Android's autofill framework. Autofill interception
+happens at the platform-view layer, below Flutter's widget tree entirely,
+which is exactly why the earlier `[KBDEBUG]` logs showed `FocusNode.hasFocus`
+never going false while the OS still hid the IME via
+`HIDE_SOFT_INPUT_BY_INSETS_API` - Android's autofill service was hiding the
+keyboard to show (or check for) a save-prompt/suggestion overlay on the first
+text change, independent of Flutter's own focus state, and independent of
+which keyboard app or OS skin was involved.
+
+Fix: pass `disableAutoFillHints: true` to both `IntlPhoneField` usages in
+`home.dart` and both in `search_and_filter.dart`. We don't rely on
+system-level phone-number autofill anywhere in this app, so this costs
+nothing. **Confirmed fixed on the user's physical device** - the keyboard no
+longer closes after the first digit. The `[KBDEBUG]` diagnostic logging
+(build counter, focus/text listeners) has been removed from
+`_GroupAddPopupState` now that the bug is resolved.
+
 ## Open items (need user input)
 
-- **Phone number field still briefly loses keyboard focus** on the first
-  digit typed (tapping back in works fine after). The `FocusNode` fix above
-  didn't fully resolve it; needs a live device to actually inspect what
-  Flutter is doing on that first rebuild, which wasn't available while
-  diagnosing this. Not blocking - just an annoyance.
 - Confirm the multi-owner recommendation above (or pick single-owner) before
   it's built into the schema/`companies`/`users` routes.
 - Who can grant `hasAccess`/`isAdmin`/boat assignments day-to-day — a real

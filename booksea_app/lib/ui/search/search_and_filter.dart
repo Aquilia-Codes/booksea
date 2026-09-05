@@ -588,85 +588,98 @@ void openTourPopup(BuildContext context, TourModel tour,
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return AlertDialog(
-        content: SizedBox(
-          width:
-              MediaQuery.sizeOf(context).width * 0.9, // Set the desired width
-          height:
-              MediaQuery.sizeOf(context).height * 0.6, // Set the desired height
-          child: Stack(
-            children: [
-              TourPopup(
-                tour: tour,
-                firestoreDatabase: firestoreDatabase,
-                companyId: companyId,
-                boatId: boatId,
-              ),
-            ],
+      // See the matching comment in home.dart's openTourPopup - this
+      // dialog's fixed-size content was overflowing whenever the nested
+      // GroupAddPopup dialog (opened on top of this one, with its own text
+      // fields) showed its keyboard, because Flutter's Dialog/AlertDialog
+      // automatically pads itself by MediaQuery.viewInsets.bottom for
+      // *any* open keyboard - including one belonging to a different,
+      // layered-on-top dialog. That overflow was the real cause of the
+      // mobile number field's keyboard closing itself after the first
+      // character typed.
+      return MediaQuery.removeViewInsets(
+        context: context,
+        removeBottom: true,
+        child: AlertDialog(
+          content: SizedBox(
+            width:
+                MediaQuery.sizeOf(context).width * 0.9, // Set the desired width
+            height: MediaQuery.sizeOf(context).height *
+                0.6, // Set the desired height
+            child: Stack(
+              children: [
+                TourPopup(
+                  tour: tour,
+                  firestoreDatabase: firestoreDatabase,
+                  companyId: companyId,
+                  boatId: boatId,
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          Stack(
-            alignment: Alignment(1.5, 0),
-            children: [
-              Container(
-                margin: EdgeInsets.only(right: 12.0),
-                width: 120, // Adjust width as needed
-                height: 46,
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .tertiaryContainer
-                          .withOpacity(0.5),
-                      blurRadius: 2,
-                      offset: Offset(-1, 0),
+          actions: [
+            Stack(
+              alignment: Alignment(1.5, 0),
+              children: [
+                Container(
+                  margin: EdgeInsets.only(right: 12.0),
+                  width: 120, // Adjust width as needed
+                  height: 46,
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .tertiaryContainer
+                            .withOpacity(0.5),
+                        blurRadius: 2,
+                        offset: Offset(-1, 0),
+                      ),
+                    ],
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onPrimary, // Match button shape
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(50),
+                      bottomLeft: Radius.circular(50),
+                      topRight: Radius.circular(10),
+                      bottomRight: Radius.circular(10),
                     ),
-                  ],
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onPrimary, // Match button shape
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(50),
-                    bottomLeft: Radius.circular(50),
-                    topRight: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            left: 20.0), // Adjust padding as needed
+                        child: Text(
+                          '${tour.price.round()}€',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary),
+                          textAlign: TextAlign.start,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(
-                          left: 20.0), // Adjust padding as needed
-                      child: Text(
-                        '${tour.price.round()}€',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary),
-                        textAlign: TextAlign.start,
-                      ),
-                    ),
-                  ],
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    iconSize: 25,
+                    padding: EdgeInsets.all(10),
+                    shape: CircleBorder(),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  onPressed: () => openGroupAddPopup(context, tour.id,
+                      companyId, boatId, firestoreDatabase, tour),
+                  child: Icon(Icons.add,
+                      color: Theme.of(context).colorScheme.onPrimary),
                 ),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  iconSize: 25,
-                  padding: EdgeInsets.all(10),
-                  shape: CircleBorder(),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                ),
-                onPressed: () => openGroupAddPopup(context, tour.id, companyId,
-                    boatId, firestoreDatabase, tour),
-                child: Icon(Icons.add,
-                    color: Theme.of(context).colorScheme.onPrimary),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       );
     },
   );
@@ -694,6 +707,12 @@ class _TourPopupState extends State<TourPopup> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // See the matching comment in home.dart's _TourPopupState - this
+      // route stays mounted underneath the GroupAddPopup dialog and was
+      // reacting to that dialog's keyboard opening, overflowing trying to
+      // avoid a keyboard it can't display, which was the real cause of the
+      // mobile number field's keyboard-closing bug.
+      resizeToAvoidBottomInset: false,
       body: Column(
         children: [
           Row(
@@ -1224,7 +1243,7 @@ class _TourDeletePopupState extends State<TourDeletePopup> {
   }
 }
 
-class GroupDataStream extends StatelessWidget {
+class GroupDataStream extends StatefulWidget {
   final String companyId;
   final String boatId;
   final TourModel tour;
@@ -1239,11 +1258,34 @@ class GroupDataStream extends StatelessWidget {
   });
 
   @override
+  State<GroupDataStream> createState() => _GroupDataStreamState();
+}
+
+class _GroupDataStreamState extends State<GroupDataStream> {
+  // See home.dart's matching _GroupDataStreamState - calling getGroups(...)
+  // inline in build() recreated the stream (and fired a new network
+  // request) on every rebuild of this screen, which stays mounted
+  // underneath the "add group" dialog and was rebuilding on every
+  // keystroke there - contributing to the keyboard-closing bug (see
+  // docs/migration-notes.md).
+  late final Stream<List<GroupModel>> _groupsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _groupsStream = widget.firestoreDatabase
+        .getGroups(widget.companyId, widget.boatId, widget.tour.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final companyId = widget.companyId;
+    final boatId = widget.boatId;
+    final tour = widget.tour;
+    final firestoreDatabase = widget.firestoreDatabase;
     return StreamBuilder<List<GroupModel>>(
-      stream: firestoreDatabase.getGroups(companyId, boatId, tour.id),
+      stream: _groupsStream,
       builder: (context, snapshot) {
-        print(snapshot.data);
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
             child: Text('Add Groups!',
@@ -1399,6 +1441,14 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   final FocusNode _mobileFocusNode = FocusNode();
   bool _isButtonEnabled = false;
   bool _isPriceManuallyEdited = false;
+  // See home.dart's _GroupAddPopupState._typeInfoFuture - calling
+  // getTypeInfo(...) inline in the FutureBuilder recreated the future (and
+  // fired a new network request) on every rebuild, i.e. every keystroke in
+  // any field, which was the most likely cause of the mobile number field's
+  // keyboard-closing bug (see docs/migration-notes.md).
+  late final Future<TypeModel> _typeInfoFuture;
+  double? _pricePerAdult;
+  double? _pricePerChild;
 
   @override
   void dispose() {
@@ -1409,17 +1459,34 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   @override
   void initState() {
     super.initState();
+    _typeInfoFuture = widget.firestoreDatabase
+        .getTypeInfo(widget.companyId, widget.boatId, widget.tour.tourType);
     _groupNameController.addListener(_updateButtonState);
     _adultCountController.addListener(() {
       _updateButtonState();
       _isPriceManuallyEdited = false;
+      _updatePriceFromCounts();
     });
     _childCountController.addListener(() {
       _updateButtonState();
       _isPriceManuallyEdited = false;
+      _updatePriceFromCounts();
     });
     _priceController.addListener(_updateButtonState);
     _mobileNumberController.addListener(_updateButtonState);
+  }
+
+  void _updatePriceFromCounts() {
+    if (_isPriceManuallyEdited ||
+        _pricePerAdult == null ||
+        _pricePerChild == null) {
+      return;
+    }
+    final adultCount = int.tryParse(_adultCountController.text) ?? 0;
+    final childCount = int.tryParse(_childCountController.text) ?? 0;
+    final totalPrice =
+        (_pricePerAdult! * adultCount) + (_pricePerChild! * childCount);
+    _priceController.text = totalPrice.toString();
   }
 
   void _updateButtonState() {
@@ -1551,32 +1618,17 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   ),
                   SizedBox(height: 10),
                   FutureBuilder(
-                    future: widget.firestoreDatabase.getTypeInfo(
-                        widget.companyId, widget.boatId, widget.tour.tourType),
+                    future: _typeInfoFuture,
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
                         final typeInfo = snapshot.data as TypeModel;
-                        final pricePerAdult = typeInfo.pricePerAdult;
-                        final pricePerChild = typeInfo.pricePerChild;
-
-                        void updatePrice() {
-                          if (!_isPriceManuallyEdited) {
-                            final adultCount =
-                                int.tryParse(_adultCountController.text) ?? 0;
-                            final childCount =
-                                int.tryParse(_childCountController.text) ?? 0;
-                            final totalPrice = (pricePerAdult * adultCount) +
-                                (pricePerChild * childCount);
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _priceController.text = totalPrice.toString();
-                            });
-                          }
+                        if (_pricePerAdult == null) {
+                          _pricePerAdult = typeInfo.pricePerAdult;
+                          _pricePerChild = typeInfo.pricePerChild;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _updatePriceFromCounts();
+                          });
                         }
-
-                        _adultCountController.addListener(updatePrice);
-                        _childCountController.addListener(updatePrice);
-
-                        updatePrice();
 
                         return TextField(
                           controller: _priceController,
@@ -1621,6 +1673,22 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                           controller: _mobileNumberController,
                           focusNode: _mobileFocusNode,
                           disableLengthCheck: true,
+                          // See the matching comment in home.dart - the
+                          // package defaults to autofillHints:
+                          // [AutofillHints.telephoneNumberNational], which
+                          // lets Android's autofill framework intercept the
+                          // field and hide the IME after the first digit at
+                          // the platform layer (never touching Flutter's
+                          // FocusNode). No other field in this form sets
+                          // autofill hints, which is why only this one
+                          // showed the symptom.
+                          disableAutoFillHints: true,
+                          // See the matching comment in home.dart - the
+                          // package's internal onChanged/autovalidate path
+                          // is another source of first-keystroke rebuild
+                          // churn we don't need since we track button-enable
+                          // state ourselves.
+                          autovalidateMode: AutovalidateMode.disabled,
                           decoration: InputDecoration(
                             labelText: 'Mobile Number',
                             labelStyle: TextStyle(
@@ -1761,10 +1829,17 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
   late TextEditingController _countryDialogCodeController;
   bool _isButtonEnabled = false;
   bool _isPriceManuallyEdited = false;
+  // See _GroupAddPopupState._typeInfoFuture for why this is cached once
+  // rather than called inline in the FutureBuilder below.
+  late final Future<TypeModel> _typeInfoFuture;
+  double? _pricePerAdult;
+  double? _pricePerChild;
 
   @override
   void initState() {
     super.initState();
+    _typeInfoFuture = widget.firestoreDatabase
+        .getTypeInfo(widget.companyId, widget.boatId, widget.tour.tourType);
     _groupNameController = TextEditingController(text: widget.group.groupName);
     _adultCountController =
         TextEditingController(text: widget.group.adultCount.toString());
@@ -1788,13 +1863,28 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
     _adultCountController.addListener(() {
       _updateButtonState();
       _isPriceManuallyEdited = false;
+      _updatePriceFromCounts();
     });
     _childCountController.addListener(() {
       _updateButtonState();
       _isPriceManuallyEdited = false;
+      _updatePriceFromCounts();
     });
     _priceController.addListener(_updateButtonState);
     _mobileNumberController.addListener(_updateButtonState);
+  }
+
+  void _updatePriceFromCounts() {
+    if (_isPriceManuallyEdited ||
+        _pricePerAdult == null ||
+        _pricePerChild == null) {
+      return;
+    }
+    final adultCount = int.tryParse(_adultCountController.text) ?? 0;
+    final childCount = int.tryParse(_childCountController.text) ?? 0;
+    final totalPrice =
+        (_pricePerAdult! * adultCount) + (_pricePerChild! * childCount);
+    _priceController.text = totalPrice.toString();
   }
 
   void _updateButtonState() {
@@ -1898,32 +1988,17 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                   ),
                   SizedBox(height: 10),
                   FutureBuilder(
-                    future: widget.firestoreDatabase.getTypeInfo(
-                        widget.companyId, widget.boatId, widget.tour.tourType),
+                    future: _typeInfoFuture,
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
                         final typeInfo = snapshot.data as TypeModel;
-                        final pricePerAdult = typeInfo.pricePerAdult;
-                        final pricePerChild = typeInfo.pricePerChild;
-
-                        void updatePrice() {
-                          if (!_isPriceManuallyEdited) {
-                            final adultCount =
-                                int.tryParse(_adultCountController.text) ?? 0;
-                            final childCount =
-                                int.tryParse(_childCountController.text) ?? 0;
-                            final totalPrice = (pricePerAdult * adultCount) +
-                                (pricePerChild * childCount);
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _priceController.text = totalPrice.toString();
-                            });
-                          }
+                        if (_pricePerAdult == null) {
+                          _pricePerAdult = typeInfo.pricePerAdult;
+                          _pricePerChild = typeInfo.pricePerChild;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _updatePriceFromCounts();
+                          });
                         }
-
-                        _adultCountController.addListener(updatePrice);
-                        _childCountController.addListener(updatePrice);
-
-                        updatePrice();
 
                         return TextField(
                           controller: _priceController,
@@ -1969,6 +2044,22 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                           controller: _mobileNumberController,
                           focusNode: _mobileFocusNode,
                           disableLengthCheck: true,
+                          // See the matching comment in home.dart - the
+                          // package defaults to autofillHints:
+                          // [AutofillHints.telephoneNumberNational], which
+                          // lets Android's autofill framework intercept the
+                          // field and hide the IME after the first digit at
+                          // the platform layer (never touching Flutter's
+                          // FocusNode). No other field in this form sets
+                          // autofill hints, which is why only this one
+                          // showed the symptom.
+                          disableAutoFillHints: true,
+                          // See the matching comment in home.dart - the
+                          // package's internal onChanged/autovalidate path
+                          // is another source of first-keystroke rebuild
+                          // churn we don't need since we track button-enable
+                          // state ourselves.
+                          autovalidateMode: AutovalidateMode.disabled,
                           decoration: InputDecoration(
                             labelText: 'Mobile Number',
                             labelStyle: TextStyle(

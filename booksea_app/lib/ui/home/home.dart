@@ -972,7 +972,19 @@ class TourCard extends StatelessWidget {
                                       padding: EdgeInsets.symmetric(
                                           vertical: 0, horizontal: 15),
                                       decoration: BoxDecoration(
-                                        color: Color(0xFFfbb040),
+                                        // Overbooking is allowed (see
+                                        // docs/migration-notes.md), so this
+                                        // can legitimately go negative - a
+                                        // plain negative number here read
+                                        // like a rendering bug, so it's
+                                        // flagged with the theme's error
+                                        // color instead of just showing
+                                        // "-1" in the normal color.
+                                        color: tour.capacity - tour.filled < 0
+                                            ? Theme.of(context)
+                                                .colorScheme
+                                                .error
+                                            : Color(0xFFfbb040),
                                         borderRadius:
                                             BorderRadius.circular(20.0),
                                       ),
@@ -983,9 +995,14 @@ class TourCard extends StatelessWidget {
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onPrimary,
+                                            color:
+                                                tour.capacity - tour.filled < 0
+                                                    ? Theme.of(context)
+                                                        .colorScheme
+                                                        .onError
+                                                    : Theme.of(context)
+                                                        .colorScheme
+                                                        .onPrimary,
                                           ),
                                         ),
                                       ),
@@ -1067,85 +1084,105 @@ void openTourPopup(BuildContext context, TourModel tour,
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return AlertDialog(
-        content: SizedBox(
-          width:
-              MediaQuery.of(context).size.width * 0.9, // Set the desired width
-          height: MediaQuery.of(context).size.height *
-              0.6, // Set the desired height
-          child: Stack(
-            children: [
-              TourPopup(
-                tour: tour,
-                firestoreDatabase: firestoreDatabase,
-                companyId: companyId,
-                boatId: boatId,
-              ),
-            ],
+      // This dialog's SizedBox height is a fixed fraction of the *full*
+      // screen height, computed once and never adjusted for a keyboard -
+      // it isn't supposed to need to, since nothing in TourPopup itself
+      // takes text input. But Flutter's Dialog/AlertDialog automatically
+      // pads itself by MediaQuery.viewInsets.bottom to stay clear of
+      // *any* open keyboard, and openGroupAddPopup below opens a second,
+      // nested dialog (with its own text fields) on top of this one while
+      // this one stays mounted underneath. Without removing view insets
+      // here, this dialog was shrinking to dodge a keyboard that belongs
+      // to the dialog on top of it, overflowing its fixed-size content by
+      // a few pixels doing so - and that overflow was the real cause of
+      // the mobile number field's keyboard closing itself right after the
+      // first character typed (confirmed via debug logging: the
+      // FocusNode itself never lost focus, only Android's own insets
+      // system reacted to this overflow by hiding the IME). See
+      // docs/migration-notes.md.
+      return MediaQuery.removeViewInsets(
+        context: context,
+        removeBottom: true,
+        child: AlertDialog(
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width *
+                0.9, // Set the desired width
+            height: MediaQuery.of(context).size.height *
+                0.6, // Set the desired height
+            child: Stack(
+              children: [
+                TourPopup(
+                  tour: tour,
+                  firestoreDatabase: firestoreDatabase,
+                  companyId: companyId,
+                  boatId: boatId,
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          Stack(
-            alignment: Alignment(1.5, 0),
-            children: [
-              Container(
-                margin: EdgeInsets.only(right: 12.0),
-                width: 120, // Adjust width as needed
-                height: 46,
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .tertiaryContainer
-                          .withValues(alpha: 0.5),
-                      blurRadius: 2,
-                      offset: Offset(-1, 0),
+          actions: [
+            Stack(
+              alignment: Alignment(1.5, 0),
+              children: [
+                Container(
+                  margin: EdgeInsets.only(right: 12.0),
+                  width: 120, // Adjust width as needed
+                  height: 46,
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .tertiaryContainer
+                            .withValues(alpha: 0.5),
+                        blurRadius: 2,
+                        offset: Offset(-1, 0),
+                      ),
+                    ],
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onPrimary, // Match button shape
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(50),
+                      bottomLeft: Radius.circular(50),
+                      topRight: Radius.circular(10),
+                      bottomRight: Radius.circular(10),
                     ),
-                  ],
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onPrimary, // Match button shape
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(50),
-                    bottomLeft: Radius.circular(50),
-                    topRight: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            left: 20.0), // Adjust padding as needed
+                        child: Text(
+                          '${tour.price.round()}€',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary),
+                          textAlign: TextAlign.start,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(
-                          left: 20.0), // Adjust padding as needed
-                      child: Text(
-                        '${tour.price.round()}€',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary),
-                        textAlign: TextAlign.start,
-                      ),
-                    ),
-                  ],
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    iconSize: 25,
+                    padding: EdgeInsets.all(10),
+                    shape: CircleBorder(),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  onPressed: () => openGroupAddPopup(context, tour.id,
+                      companyId, boatId, firestoreDatabase, tour),
+                  child: Icon(Icons.add,
+                      color: Theme.of(context).colorScheme.onPrimary),
                 ),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  iconSize: 25,
-                  padding: EdgeInsets.all(10),
-                  shape: CircleBorder(),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                ),
-                onPressed: () => openGroupAddPopup(context, tour.id, companyId,
-                    boatId, firestoreDatabase, tour),
-                child: Icon(Icons.add,
-                    color: Theme.of(context).colorScheme.onPrimary),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       );
     },
   );
@@ -1702,7 +1739,7 @@ class _TourDeletePopupState extends State<TourDeletePopup> {
   }
 }
 
-class GroupDataStream extends StatelessWidget {
+class GroupDataStream extends StatefulWidget {
   final String companyId;
   final String boatId;
   final TourModel tour;
@@ -1717,11 +1754,38 @@ class GroupDataStream extends StatelessWidget {
   });
 
   @override
+  State<GroupDataStream> createState() => _GroupDataStreamState();
+}
+
+class _GroupDataStreamState extends State<GroupDataStream> {
+  // Was previously called inline as `firestoreDatabase.getGroups(...)`
+  // directly in the StreamBuilder below - a StatelessWidget's build() runs
+  // on every parent rebuild, so this created a brand new stream (with its
+  // own fresh network round-trip, resetting to a loading state each time)
+  // whenever anything above this widget rebuilt - including every
+  // keystroke in the "add group" dialog opened on top of this screen,
+  // since this screen (TourPopup) stays mounted underneath that dialog.
+  // That repeated rebuilding is what was still triggering Android's
+  // insets system to hide the dialog's keyboard, even after fixing the
+  // dialog-level overflow this caused (see docs/migration-notes.md).
+  late final Stream<List<GroupModel>> _groupsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _groupsStream = widget.firestoreDatabase
+        .getGroups(widget.companyId, widget.boatId, widget.tour.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final companyId = widget.companyId;
+    final boatId = widget.boatId;
+    final tour = widget.tour;
+    final firestoreDatabase = widget.firestoreDatabase;
     return StreamBuilder<List<GroupModel>>(
-      stream: firestoreDatabase.getGroups(companyId, boatId, tour.id),
+      stream: _groupsStream,
       builder: (context, snapshot) {
-        print(snapshot.data);
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
             child: Text('Add Groups!',
@@ -1877,6 +1941,21 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   final FocusNode _mobileFocusNode = FocusNode();
   bool _isButtonEnabled = false;
   bool _isPriceManuallyEdited = false;
+  // Was previously called inline as `widget.firestoreDatabase.getTypeInfo(...)`
+  // directly in the FutureBuilder below - which creates a brand new Future
+  // (and fires a brand new network request) on every single rebuild, i.e.
+  // every keystroke in any field, since a StatefulWidget's build() method
+  // runs on every setState(). FutureBuilder then resets to its loading
+  // state each time until the new request resolves, which meant the price
+  // TextField's slot in this form was flipping between that and a bare
+  // Text('') continuously while typing anywhere in the form - a real
+  // structural change to a sibling element on every keystroke, and the
+  // most likely cause of the mobile number field's keyboard-closing bug
+  // (see docs/migration-notes.md). Caching the future once in initState()
+  // fixes both the redundant network spam and (hopefully) the keyboard.
+  late final Future<TypeModel> _typeInfoFuture;
+  double? _pricePerAdult;
+  double? _pricePerChild;
 
   @override
   void dispose() {
@@ -1887,17 +1966,37 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   @override
   void initState() {
     super.initState();
+    _typeInfoFuture = widget.firestoreDatabase
+        .getTypeInfo(widget.companyId, widget.boatId, widget.tour.tourType);
     _groupNameController.addListener(_updateButtonState);
     _adultCountController.addListener(() {
       _updateButtonState();
       _isPriceManuallyEdited = false;
+      _updatePriceFromCounts();
     });
     _childCountController.addListener(() {
       _updateButtonState();
       _isPriceManuallyEdited = false;
+      _updatePriceFromCounts();
     });
     _priceController.addListener(_updateButtonState);
     _mobileNumberController.addListener(_updateButtonState);
+  }
+
+  // Was previously a closure re-created (and its listeners re-attached,
+  // without ever being removed) on every FutureBuilder rebuild - see the
+  // comment on _typeInfoFuture above.
+  void _updatePriceFromCounts() {
+    if (_isPriceManuallyEdited ||
+        _pricePerAdult == null ||
+        _pricePerChild == null) {
+      return;
+    }
+    final adultCount = int.tryParse(_adultCountController.text) ?? 0;
+    final childCount = int.tryParse(_childCountController.text) ?? 0;
+    final totalPrice =
+        (_pricePerAdult! * adultCount) + (_pricePerChild! * childCount);
+    _priceController.text = totalPrice.toString();
   }
 
   void _updateButtonState() {
@@ -1936,8 +2035,8 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
       final overBy = wouldBeFilled - widget.tour.capacity;
       var proceed = true;
       if (overBy > 0) {
-        proceed = await _confirmOverbook(
-            context, filled: wouldBeFilled, capacity: widget.tour.capacity);
+        proceed = await _confirmOverbook(context,
+            filled: wouldBeFilled, capacity: widget.tour.capacity);
       }
       if (!context.mounted || !proceed) return;
 
@@ -2029,32 +2128,17 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                   ),
                   SizedBox(height: 10),
                   FutureBuilder(
-                    future: widget.firestoreDatabase.getTypeInfo(
-                        widget.companyId, widget.boatId, widget.tour.tourType),
+                    future: _typeInfoFuture,
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
                         final typeInfo = snapshot.data as TypeModel;
-                        final pricePerAdult = typeInfo.pricePerAdult;
-                        final pricePerChild = typeInfo.pricePerChild;
-
-                        void updatePrice() {
-                          if (!_isPriceManuallyEdited) {
-                            final adultCount =
-                                int.tryParse(_adultCountController.text) ?? 0;
-                            final childCount =
-                                int.tryParse(_childCountController.text) ?? 0;
-                            final totalPrice = (pricePerAdult * adultCount) +
-                                (pricePerChild * childCount);
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _priceController.text = totalPrice.toString();
-                            });
-                          }
+                        if (_pricePerAdult == null) {
+                          _pricePerAdult = typeInfo.pricePerAdult;
+                          _pricePerChild = typeInfo.pricePerChild;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _updatePriceFromCounts();
+                          });
                         }
-
-                        _adultCountController.addListener(updatePrice);
-                        _childCountController.addListener(updatePrice);
-
-                        updatePrice();
 
                         return TextField(
                           controller: _priceController,
@@ -2099,6 +2183,32 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                           controller: _mobileNumberController,
                           focusNode: _mobileFocusNode,
                           disableLengthCheck: true,
+                          // The package defaults to
+                          // autofillHints: [AutofillHints.telephoneNumberNational],
+                          // which is the actual cause of the keyboard
+                          // dismissing itself after the first digit: Android's
+                          // autofill framework intercepts the field's
+                          // focus/text-change events to check for a
+                          // save-prompt or inline suggestion, hiding the IME
+                          // at the platform layer without ever touching
+                          // Flutter's FocusNode. None of the other fields in
+                          // this form set autofill hints, which is why only
+                          // this field showed the symptom. Disabling it
+                          // costs us nothing since we don't rely on
+                          // system-level phone-number autofill here.
+                          disableAutoFillHints: true,
+                          // Its internal onChanged awaits widget.validator
+                          // (we don't pass one) and, with the default
+                          // AutovalidateMode.onUserInteraction, the very
+                          // first keystroke triggers FormField's own
+                          // internal setState to turn on autovalidation -
+                          // one more source of first-keystroke rebuild
+                          // churn around the field, on top of what the
+                          // FocusNode fix already addressed. We don't use
+                          // this widget's own validation (button-enable
+                          // state is tracked separately), so disabling it
+                          // is free.
+                          autovalidateMode: AutovalidateMode.disabled,
                           decoration: InputDecoration(
                             labelText: 'Mobile Number',
                             labelStyle: TextStyle(
@@ -2239,10 +2349,17 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
   late TextEditingController _countryDialogCodeController;
   bool _isButtonEnabled = false;
   bool _isPriceManuallyEdited = false;
+  // See _GroupAddPopupState._typeInfoFuture for why this is cached once
+  // rather than called inline in the FutureBuilder below.
+  late final Future<TypeModel> _typeInfoFuture;
+  double? _pricePerAdult;
+  double? _pricePerChild;
 
   @override
   void initState() {
     super.initState();
+    _typeInfoFuture = widget.firestoreDatabase
+        .getTypeInfo(widget.companyId, widget.boatId, widget.tour.tourType);
     _groupNameController = TextEditingController(text: widget.group.groupName);
     _adultCountController =
         TextEditingController(text: widget.group.adultCount.toString());
@@ -2266,13 +2383,29 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
     _adultCountController.addListener(() {
       _updateButtonState();
       _isPriceManuallyEdited = false;
+      _updatePriceFromCounts();
     });
     _childCountController.addListener(() {
       _updateButtonState();
       _isPriceManuallyEdited = false;
+      _updatePriceFromCounts();
     });
     _priceController.addListener(_updateButtonState);
     _mobileNumberController.addListener(_updateButtonState);
+  }
+
+  // See _GroupAddPopupState._updatePriceFromCounts.
+  void _updatePriceFromCounts() {
+    if (_isPriceManuallyEdited ||
+        _pricePerAdult == null ||
+        _pricePerChild == null) {
+      return;
+    }
+    final adultCount = int.tryParse(_adultCountController.text) ?? 0;
+    final childCount = int.tryParse(_childCountController.text) ?? 0;
+    final totalPrice =
+        (_pricePerAdult! * adultCount) + (_pricePerChild! * childCount);
+    _priceController.text = totalPrice.toString();
   }
 
   void _updateButtonState() {
@@ -2376,32 +2509,17 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                   ),
                   SizedBox(height: 10),
                   FutureBuilder(
-                    future: widget.firestoreDatabase.getTypeInfo(
-                        widget.companyId, widget.boatId, widget.tour.tourType),
+                    future: _typeInfoFuture,
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
                         final typeInfo = snapshot.data as TypeModel;
-                        final pricePerAdult = typeInfo.pricePerAdult;
-                        final pricePerChild = typeInfo.pricePerChild;
-
-                        void updatePrice() {
-                          if (!_isPriceManuallyEdited) {
-                            final adultCount =
-                                int.tryParse(_adultCountController.text) ?? 0;
-                            final childCount =
-                                int.tryParse(_childCountController.text) ?? 0;
-                            final totalPrice = (pricePerAdult * adultCount) +
-                                (pricePerChild * childCount);
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _priceController.text = totalPrice.toString();
-                            });
-                          }
+                        if (_pricePerAdult == null) {
+                          _pricePerAdult = typeInfo.pricePerAdult;
+                          _pricePerChild = typeInfo.pricePerChild;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _updatePriceFromCounts();
+                          });
                         }
-
-                        _adultCountController.addListener(updatePrice);
-                        _childCountController.addListener(updatePrice);
-
-                        updatePrice();
 
                         return TextField(
                           controller: _priceController,
@@ -2447,6 +2565,32 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                           controller: _mobileNumberController,
                           focusNode: _mobileFocusNode,
                           disableLengthCheck: true,
+                          // The package defaults to
+                          // autofillHints: [AutofillHints.telephoneNumberNational],
+                          // which is the actual cause of the keyboard
+                          // dismissing itself after the first digit: Android's
+                          // autofill framework intercepts the field's
+                          // focus/text-change events to check for a
+                          // save-prompt or inline suggestion, hiding the IME
+                          // at the platform layer without ever touching
+                          // Flutter's FocusNode. None of the other fields in
+                          // this form set autofill hints, which is why only
+                          // this field showed the symptom. Disabling it
+                          // costs us nothing since we don't rely on
+                          // system-level phone-number autofill here.
+                          disableAutoFillHints: true,
+                          // Its internal onChanged awaits widget.validator
+                          // (we don't pass one) and, with the default
+                          // AutovalidateMode.onUserInteraction, the very
+                          // first keystroke triggers FormField's own
+                          // internal setState to turn on autovalidation -
+                          // one more source of first-keystroke rebuild
+                          // churn around the field, on top of what the
+                          // FocusNode fix already addressed. We don't use
+                          // this widget's own validation (button-enable
+                          // state is tracked separately), so disabling it
+                          // is free.
+                          autovalidateMode: AutovalidateMode.disabled,
                           decoration: InputDecoration(
                             labelText: 'Mobile Number',
                             labelStyle: TextStyle(
