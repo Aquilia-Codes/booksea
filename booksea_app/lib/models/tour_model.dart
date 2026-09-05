@@ -51,8 +51,13 @@ class TourModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'startTime': startTime.toIso8601String(),
-      'endTime': endTime.toIso8601String(),
+      // The backend requires a UTC-formatted datetime (zod's
+      // z.string().datetime() rejects a bare local-time string with no
+      // timezone marker at all - which plain toIso8601String() on a local
+      // DateTime produces, since these are usually built via the local
+      // DateTime(...) constructor in the tour-creation/edit UI).
+      'startTime': startTime.toUtc().toIso8601String(),
+      'endTime': endTime.toUtc().toIso8601String(),
       'tourName': tourName,
       'tourType': tourType,
       'typeImage': typeImage,

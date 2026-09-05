@@ -12,6 +12,10 @@ Future<void> main(List<String> args) async {
     print('Usage: dart run tool/smoke_test_api_database.dart <accessToken>');
     return;
   }
+  // ApiClient.baseUrl defaults to the deployed Render backend now (see that
+  // field's doc comment) - this script is for testing against a local
+  // backend + local DB, so it must override that back to localhost.
+  ApiClient.baseUrl = 'http://localhost:4000';
   ApiClient.instance.setTokens(accessToken: args[0], refreshToken: 'unused');
   final db = ApiDatabase(uid: 'smoke');
   const boatId = 'Catamaran'; // name, not uuid - see docs/migration-notes.md
@@ -32,8 +36,12 @@ Future<void> main(List<String> args) async {
     tourType: '',
     typeImage: 1,
     capacity: 8,
-    startTime: DateTime.utc(2026, 9, 15, 9),
-    endTime: DateTime.utc(2026, 9, 15, 12),
+    // Local (not .utc) on purpose - matches how the real UI builds these
+    // (home.dart's DateTime(...) constructor call in _validateAndSubmit),
+    // which is exactly what exposed the missing .toUtc() bug in
+    // TourModel.toMap() that DateTime.utc(...) here previously masked.
+    startTime: DateTime(2026, 9, 15, 9),
+    endTime: DateTime(2026, 9, 15, 12),
     note: 'from dart smoke test',
   );
   await db.createTour(companyId, boatId, tour);
@@ -51,7 +59,7 @@ Future<void> main(List<String> args) async {
     adultCount: 2,
     childCount: 0,
     price: 0, // whole-number price - the exact case that used to crash
-    paymentStatus: 'unpaid',
+    paymentStatus: 'paid',
     mobileNumber: '',
     countryCode: '',
     countryDialogCode: '',

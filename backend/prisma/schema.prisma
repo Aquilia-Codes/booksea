@@ -13,10 +13,14 @@ enum CompanyStatus {
   suspended
 }
 
+// Matches the Flutter UI's actual payment-status dropdown (Paid/Reserved/
+// Cancelled, lowercased on the wire) - see docs/migration-notes.md. Was
+// originally invented as unpaid/partial/paid without checking the existing
+// UI first; every group submission failed validation until this was fixed.
 enum PaymentStatus {
-  unpaid
-  partial
   paid
+  reserved
+  cancelled
 }
 
 model Tier {
@@ -155,7 +159,7 @@ model BookingGroup {
   adultCount      Int           @default(0) @map("adult_count")
   childCount      Int           @default(0) @map("child_count")
   price           Decimal       @default(0) @db.Decimal(10, 2)
-  paymentStatus   PaymentStatus @default(unpaid) @map("payment_status")
+  paymentStatus   PaymentStatus @default(paid) @map("payment_status")
   mobileNumber    String        @default("") @map("mobile_number")
   countryCode     String        @default("") @map("country_code")
   countryDialCode String        @default("") @map("country_dial_code")

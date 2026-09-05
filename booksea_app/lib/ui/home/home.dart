@@ -12,6 +12,11 @@ import 'package:booksea_app/models/tour_model.dart';
 import 'package:booksea_app/ui/home/qr_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+// The paymentStatus API enum is lowercase ("paid"); the dropdown displays
+// Title Case ("Paid") and its items must match exactly.
+String _titleCase(String value) =>
+    value.isEmpty ? value : value[0].toUpperCase() + value.substring(1);
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -1841,8 +1846,22 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
   final TextEditingController _countryCodeController = TextEditingController();
   final TextEditingController _countryDialogCodeController =
       TextEditingController();
+  // Owning this FocusNode externally (rather than letting IntlPhoneField
+  // create its own internally) keeps its identity stable across the
+  // setState() rebuilds triggered by the controller listeners below -
+  // without this, the keyboard was closing after the very first digit
+  // typed into the phone field (a known class of Flutter bug: see
+  // flutter/flutter#96345, "Focus is lost on TextField when executing
+  // setState(), when parent is changed between states").
+  final FocusNode _mobileFocusNode = FocusNode();
   bool _isButtonEnabled = false;
   bool _isPriceManuallyEdited = false;
+
+  @override
+  void dispose() {
+    _mobileFocusNode.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -1885,7 +1904,8 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
         adultCount: int.tryParse(_adultCountController.text) ?? 0,
         childCount: int.tryParse(_childCountController.text) ?? 0,
         price: double.tryParse(_priceController.text) ?? 0.0,
-        paymentStatus: _paymentStatusController.text,
+        // The dropdown displays Title Case; the API's enum is lowercase.
+        paymentStatus: _paymentStatusController.text.toLowerCase(),
         bookerId: '',
         mobileNumber: _mobileNumberController.text,
         countryCode: _countryCodeController.text,
@@ -2054,6 +2074,7 @@ class _GroupAddPopupState extends State<GroupAddPopup> {
                       Expanded(
                         child: IntlPhoneField(
                           controller: _mobileNumberController,
+                          focusNode: _mobileFocusNode,
                           disableLengthCheck: true,
                           decoration: InputDecoration(
                             labelText: 'Mobile Number',
@@ -2188,6 +2209,9 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
   late TextEditingController _priceController;
   late TextEditingController _paymentStatusController;
   late TextEditingController _mobileNumberController;
+  // See _GroupAddPopupState._mobileFocusNode for why this is owned here
+  // rather than left for IntlPhoneField to create internally.
+  final FocusNode _mobileFocusNode = FocusNode();
   late TextEditingController _countryCodeController;
   late TextEditingController _countryDialogCodeController;
   bool _isButtonEnabled = false;
@@ -2203,8 +2227,11 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
         TextEditingController(text: widget.group.childCount.toString());
     _priceController =
         TextEditingController(text: widget.group.price.toString());
-    _paymentStatusController =
-        TextEditingController(text: widget.group.paymentStatus);
+    // The API's enum is lowercase ("paid"); the dropdown displays Title
+    // Case ("Paid") and its items must match exactly or the dropdown
+    // throws/shows blank.
+    _paymentStatusController = TextEditingController(
+        text: _titleCase(widget.group.paymentStatus));
     _mobileNumberController =
         TextEditingController(text: widget.group.mobileNumber);
     _countryCodeController =
@@ -2248,7 +2275,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
           adultCount: adultCount,
           childCount: childCount,
           price: double.tryParse(_priceController.text) ?? 0.0,
-          paymentStatus: _paymentStatusController.text,
+          paymentStatus: _paymentStatusController.text.toLowerCase(),
           bookerId: widget.group.bookerId,
           mobileNumber: _mobileNumberController.text,
           countryCode: _countryCodeController.text,
@@ -2282,6 +2309,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
     _priceController.dispose();
     _paymentStatusController.dispose();
     _mobileNumberController.dispose();
+    _mobileFocusNode.dispose();
     _countryCodeController.dispose();
     _countryDialogCodeController.dispose();
     super.dispose();
@@ -2394,6 +2422,7 @@ class _GroupEditPopupState extends State<GroupEditPopup> {
                       Expanded(
                         child: IntlPhoneField(
                           controller: _mobileNumberController,
+                          focusNode: _mobileFocusNode,
                           disableLengthCheck: true,
                           decoration: InputDecoration(
                             labelText: 'Mobile Number',

@@ -32,6 +32,19 @@ class ApiClient {
   String? _accessToken;
   String? _refreshToken;
 
+  // Several screens poll independently (tours, summary, groups - each on
+  // its own timer, see ApiDatabase._pollStream), all sharing this one
+  // client. They all hold the same access token, so it expires for all of
+  // them at once - and since refresh tokens rotate on use (old one revoked,
+  // see backend/src/routes/auth.ts), if two pollers both hit 401 around the
+  // same moment and each independently call /auth/refresh, the first one's
+  // rotation invalidates the refresh token before the second one's request
+  // lands, so the second one "fails" and wipes out the good tokens the
+  // first one just got - logging the session out even though it was fine.
+  // This makes concurrent callers share one in-flight refresh instead of
+  // racing separate ones.
+  Future<bool>? _refreshInFlight;
+
   String? get refreshToken => _refreshToken;
 
   void setTokens({required String accessToken, required String refreshToken}) {
@@ -43,7 +56,7 @@ class ApiClient {
   /// restore a session on app start. Returns whether it succeeded.
   Future<bool> refreshWithToken(String refreshToken) async {
     _refreshToken = refreshToken;
-    return _tryRefresh();
+    return _refreshOnce();
   }
 
   void clearTokens() {
@@ -93,7 +106,7 @@ class ApiClient {
     }
 
     if (response.statusCode == 401 && !isRetry && _refreshToken != null) {
-      final refreshed = await _tryRefresh();
+      final refreshed = await _refreshOnce();
       if (refreshed) {
         return _send(method, path, query: query, body: body, isRetry: true);
       }
@@ -114,6 +127,15 @@ class ApiClient {
       // Body wasn't JSON - use it as-is.
     }
     throw ApiException(response.statusCode, message);
+  }
+
+  // Ensures only one /auth/refresh call is ever in flight at a time -
+  // concurrent callers (see the comment on _refreshInFlight) all await the
+  // same attempt instead of racing separate ones.
+  Future<bool> _refreshOnce() {
+    return _refreshInFlight ??= _tryRefresh().whenComplete(() {
+      _refreshInFlight = null;
+    });
   }
 
   Future<bool> _tryRefresh() async {

@@ -391,6 +391,72 @@ the app rather than by review:
   possibly-null `company`/`boat`) were artifacts of the IDE analyzing those
   files with no project config at all, not real bugs, but the coverage gap
   itself was real and is what mattered here.
+- **`TypeModel.options` crashed on every parse** with
+  `type 'List<dynamic>' is not a subtype of type 'List<String>?'` - JSON
+  arrays always decode as `List<dynamic>`, which Dart doesn't implicitly
+  narrow to `List<String>`. This fired on every Home screen load (via
+  `getTourTypesAndBoatInfo`, called through a bare `.then()` with no error
+  handler - so it failed *silently*, printing to console but not crashing
+  visibly, leaving `types` empty) and again, visibly this time, whenever
+  tour creation touched `getTypeInfo`. Fixed with an explicit
+  `.cast<String>()`.
+- **`TourModel.toMap()` sent a local-time string the backend always
+  rejected.** The tour-creation UI builds `startTime`/`endTime` via the
+  local `DateTime(...)` constructor (matches the picked date + time-of-day
+  from the type), and `toMap()` called plain `.toIso8601String()` on it -
+  which for a non-UTC `DateTime` omits any timezone marker entirely. The
+  backend's `z.string().datetime()` (zod) requires one, so every
+  `createTour`/`updateTour` call failed validation. This is exactly the
+  kind of bug the `tool/smoke_test_api_database.dart` script was supposed
+  to catch, and didn't - because that script builds its test tour with
+  `DateTime.utc(...)`, sidestepping the exact code path the real UI uses.
+  Fixed by adding `.toUtc()` before formatting; updated the smoke-test
+  script to use a local `DateTime(...)` on purpose so it actually exercises
+  this path.
+
+## Polling-related bugs found once several screens were used together (2026-09-04)
+
+Reported together, but all four traced back to one root cause:
+
+- Tour cards visibly "blinking" on every refresh.
+- Switching between two dates reloading all groups from scratch.
+- Groups occasionally appearing to get wiped by a refresh.
+- The whole app failing after a while with a 401 "missing bearer token"
+  error, effectively logging the session out.
+
+**Root cause of the 401**: several screens poll independently (tours,
+summary, groups - each `ApiDatabase` stream call sets up its own timer, see
+`_pollStream`), all sharing one `ApiClient` and therefore one access token.
+That token expires for all of them at the same moment (~15 min after
+login). Since refresh tokens rotate on use (old one revoked - see
+`backend/src/routes/auth.ts`), if two pollers each hit 401 around the same
+moment and each independently calls `POST /auth/refresh`, the first one's
+rotation invalidates the refresh token before the second one's request
+lands - so the second "fails" and wipes out the good tokens the first one
+just obtained, via `clearTokens()`. Net effect: a working session
+spontaneously logs itself out, with no error surfaced to the user beyond
+a generic 401. Fixed in `lib/services/api_client.dart` by making refresh
+single-flight (`_refreshOnce`/`_refreshInFlight`): concurrent 401s now
+await one shared `/auth/refresh` call instead of racing separate ones.
+This likely also explains the "groups wiped" report - not actual data
+loss, but the auth failure making a poll tick briefly show an
+error/empty state.
+
+**Root cause of the blinking/reload feel**: `_pollStream` (`api_database.dart`)
+unconditionally re-emitted a freshly-fetched value every 8s (was 5s),
+even when it was identical to the last one - every tick rebuilt the
+`StreamBuilder`, whether or not anything had actually changed. Added an
+optional `fingerprint` function to `_pollStream` (JSON-encodes each
+model's `.toMap()` for comparison) so a poll only emits when the data
+actually differs from the last emission; wired into all four polling
+methods (`getToursStream`, `getSumOfPriceStream`, `getGroups`,
+`searchTours`). This is a real fix, not just a band-aid - genuine changes
+(like a newly-created group) still propagate on the next tick as normal.
+The per-date group reload on switching dates is expected given the current
+per-widget polling design and wasn't specifically addressed - full
+elimination of both the interval and any refetch-on-widget-rebuild waits
+for phase 7 (socket.io push, see the phase list above), which these fixes
+were always meant to be temporary standing for.
 
 `firestore_database.dart`/`firestore_service.dart`/`firestore_path.dart`
 are now fully orphaned — nothing imports them anymore — but left in
@@ -516,6 +582,57 @@ lesson for the rest of this backend: any route that spreads a
 Zod-validated body into a Prisma `data:` object is a place where a
 Dart/Prisma field-name mismatch can hide from the type checker — worth
 double-checking each one by hand rather than trusting `tsc --noEmit` alone.
+
+## Group creation bugs found once the polling fixes let testing continue (2026-09-04)
+
+- **Phone number field closed the keyboard after the first digit.** A known
+  class of Flutter bug (see flutter/flutter#96345, "Focus is lost on
+  TextField when executing setState(), when parent is changed between
+  states"): the group forms call `setState()` from a controller listener on
+  every keystroke (to enable/disable the submit button), and `IntlPhoneField`
+  was left to create its own internal `FocusNode` - which isn't guaranteed
+  to survive that rebuild pattern. Checked first whether `intl_phone_field`
+  itself was outdated (it wasn't - `3.2.0` is the current latest on pub.dev)
+  and read its actual source (no `didUpdateWidget` reset logic, so the bug
+  wasn't inside the package itself). Fixed by giving each `IntlPhoneField`
+  an externally-owned, stable `FocusNode` instead of letting it create its
+  own - the standard mitigation for this bug class. Applied to both the
+  create and edit group forms, in both `home.dart` and
+  `search_and_filter.dart` (4 places total).
+- **Every group creation failed validation - a real design mismatch, not a
+  typo.** The backend's `PaymentStatus` enum was invented during initial
+  schema design (`unpaid`/`partial`/`paid`) without checking what the
+  Flutter UI's dropdown actually offered (`Paid`/`Reserved`/`Cancelled`,
+  a booking-status concept, not just paid-or-not). Every submission was
+  rejected by zod since the two value sets never overlapped at all. Fixed
+  the **backend** to match the app's real, pre-existing design rather than
+  changing the UI: `PaymentStatus` is now `paid`/`reserved`/`cancelled`
+  (lowercase, migration `20260904010000_fix_payment_status_values` - drops
+  and recreates the enum, clearing `booking_groups` first since only
+  test/smoke data existed anywhere so far). Flutter side: dropdown labels
+  and the `'Paid'` default are unchanged; the app lowercases the value when
+  sending (`_paymentStatusController.text.toLowerCase()`) and capitalizes
+  it back (new `_titleCase` helper) when loading an existing group into the
+  edit form, so the dropdown's exact-case items still match. 4 call sites
+  across both files.
+- **The smoke-test tool itself gave a false failure signal while debugging
+  the above** - `dart run tool/smoke_test_api_database.dart` failed every
+  request with 401 even with a freshly-minted, curl-verified-valid token.
+  Cause: `ApiClient.baseUrl` now defaults to the deployed Render backend
+  (changed a few turns ago for the real app), and the script never
+  overrode it back to `localhost:4000` - so it was sending a token signed
+  with the *local* `JWT_ACCESS_SECRET` to *Render's* backend, which has a
+  different secret and correctly rejected the signature. Not a code bug,
+  a stale test fixture; fixed by having the script set
+  `ApiClient.baseUrl = 'http://localhost:4000'` explicitly at startup,
+  since its whole purpose is testing against a local backend.
+
+  All of the above verified together via one full run of that corrected
+  script against the local DB, after also applying the migration and
+  updating `tours.ts`/`groups.ts`'s zod schemas: getUser, boat+type
+  fetch, createTour (local-time DateTime, exercising the earlier
+  `.toUtc()` fix), createGroup (with `paymentStatus: 'paid'`, exercising
+  this fix), arrival update, and cleanup all passed end to end.
 
 ## Open items (need user input)
 

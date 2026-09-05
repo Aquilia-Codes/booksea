@@ -73,7 +73,7 @@ const createGroupBody = z.object({
   adultCount: z.number().int().min(0),
   childCount: z.number().int().min(0).default(0),
   price: z.number().min(0),
-  paymentStatus: z.enum(["unpaid", "partial", "paid"]).default("unpaid"),
+  paymentStatus: z.enum(["paid", "reserved", "cancelled"]).default("paid"),
   mobileNumber: z.string().default(""),
   countryCode: z.string().default(""),
   countryDialogCode: z.string().default(""),

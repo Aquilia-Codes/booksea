@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:booksea_app/models/boat_model.dart';
 import 'package:booksea_app/models/user_model.dart';
@@ -29,11 +30,24 @@ class ApiDatabase {
 
   final ApiClient _client = ApiClient.instance;
 
-  static const _pollInterval = Duration(seconds: 5);
+  static const _pollInterval = Duration(seconds: 8);
 
-  Stream<T> _pollStream<T>(Future<T> Function() fetch) async* {
+  // `fingerprint` lets a poll skip re-emitting when nothing actually
+  // changed - without it, every tick rebuilds the StreamBuilder with a
+  // structurally-identical-but-new list/map, which is what caused the
+  // visible "blink" on every refresh even when nothing new happened.
+  Stream<T> _pollStream<T>(
+    Future<T> Function() fetch, {
+    String Function(T value)? fingerprint,
+  }) async* {
+    String? lastFingerprint;
     while (true) {
-      yield await fetch();
+      final value = await fetch();
+      final fp = fingerprint?.call(value);
+      if (fingerprint == null || fp != lastFingerprint) {
+        lastFingerprint = fp;
+        yield value;
+      }
       await Future.delayed(_pollInterval);
     }
   }
@@ -89,13 +103,19 @@ class ApiDatabase {
         'totalPrice': (data['totalPrice'] as num).toDouble(),
         'totalProvision': (data['totalProvision'] as num).toDouble(),
       };
-    });
+    }, fingerprint: (value) => jsonEncode(value));
   }
+
+  static String _fingerprintTours(List<TourModel> tours) =>
+      jsonEncode(tours.map((t) => t.toMap()).toList());
 
   // getToursStream -> GET /boats/:id/tours (polling)
   Stream<List<TourModel>> getToursStream(
       String companyId, String boatId, DateTime startTime, DateTime endTime) {
-    return _pollStream(() => getTours(companyId, boatId, startTime, endTime));
+    return _pollStream(
+      () => getTours(companyId, boatId, startTime, endTime),
+      fingerprint: _fingerprintTours,
+    );
   }
 
   // createTour -> POST /boats/:id/tours
@@ -148,7 +168,7 @@ class ApiDatabase {
           .map((e) => GroupModel.fromMap(
               e as Map<String, dynamic>, e['id'] as String))
           .toList();
-    });
+    }, fingerprint: (groups) => jsonEncode(groups.map((g) => g.toMap()).toList()));
   }
 
   // getGroup -> GET /groups/:id
@@ -223,6 +243,6 @@ class ApiDatabase {
           .map((e) => TourModel.fromMap(
               e as Map<String, dynamic>, e['id'] as String))
           .toList();
-    });
+    }, fingerprint: _fingerprintTours);
   }
 }

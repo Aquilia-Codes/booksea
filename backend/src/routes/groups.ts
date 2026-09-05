@@ -24,7 +24,7 @@ const updateGroupBody = z.object({
   adultCount: z.number().int().min(0).optional(),
   childCount: z.number().int().min(0).optional(),
   price: z.number().min(0).optional(),
-  paymentStatus: z.enum(["unpaid", "partial", "paid"]).optional(),
+  paymentStatus: z.enum(["paid", "reserved", "cancelled"]).optional(),
   mobileNumber: z.string().optional(),
   countryCode: z.string().optional(),
   countryDialogCode: z.string().optional(),
