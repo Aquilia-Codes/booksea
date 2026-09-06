@@ -30,6 +30,27 @@ export function registerSockets(io: Server) {
   io.on("connection", (socket) => {
     const authed = socket as AuthedSocket;
 
+    // join:boat/join:tour/leave:boat each run a real DB query
+    // (getBoatByName/getAccessibleTour) - an already-authenticated client
+    // spamming these could still force repeated DB load even though it
+    // can't do anything an anonymous flood could (see docs/migration-notes.md
+    // "Basic DDoS/abuse mitigation"). One shared counter across all four
+    // events per socket is enough; this doesn't need to be as precise as
+    // the REST rate limiter, just bounded.
+    let eventCount = 0;
+    let windowStart = Date.now();
+    const EVENT_LIMIT = 30;
+    const WINDOW_MS = 10_000;
+    function withinEventLimit(): boolean {
+      const now = Date.now();
+      if (now - windowStart > WINDOW_MS) {
+        windowStart = now;
+        eventCount = 0;
+      }
+      eventCount++;
+      return eventCount <= EVENT_LIMIT;
+    }
+
     // Every socket automatically gets its own user room - unlike
     // boat/tour rooms, this needs no explicit join call or access check,
     // since a user always has access to their own data. See
@@ -43,6 +64,7 @@ export function registerSockets(io: Server) {
     // room key the REST routes actually broadcast to (emitToursChanged etc.
     // are always called with the real boat.id, never the name).
     socket.on("join:boat", async (boatId: string, ack?: (ok: boolean) => void) => {
+      if (!withinEventLimit()) return ack?.(false);
       try {
         const boat = await getBoatByName(authed.data.user, boatId);
         socket.join(`boat:${boat.id}`);
@@ -53,6 +75,7 @@ export function registerSockets(io: Server) {
     });
 
     socket.on("join:tour", async (tourId: string, ack?: (ok: boolean) => void) => {
+      if (!withinEventLimit()) return ack?.(false);
       try {
         await getAccessibleTour(authed.data.user, tourId);
         socket.join(`tour:${tourId}`);
@@ -66,6 +89,7 @@ export function registerSockets(io: Server) {
     // room the socket is really in. Best-effort: if the boat can't be
     // resolved (e.g. renamed/deleted mid-session) there's nothing to leave.
     socket.on("leave:boat", async (boatId: string) => {
+      if (!withinEventLimit()) return;
       try {
         const boat = await getBoatByName(authed.data.user, boatId);
         socket.leave(`boat:${boat.id}`);
@@ -73,6 +97,9 @@ export function registerSockets(io: Server) {
         // no-op
       }
     });
-    socket.on("leave:tour", (tourId: string) => socket.leave(`tour:${tourId}`));
+    socket.on("leave:tour", (tourId: string) => {
+      if (!withinEventLimit()) return;
+      socket.leave(`tour:${tourId}`);
+    });
   });
 }

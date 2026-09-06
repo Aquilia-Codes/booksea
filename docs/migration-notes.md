@@ -1061,6 +1061,7 @@ linked every booking to whoever made it. All of it was purely new routes
 and screens on top of an already-adequate data model.
 
 **Design decisions** (asked and answered before building):
+
 - Only an **owner** (not admin) can approve access, change roles, or set
   provision - keeps admins operational, owners handle people/money.
 - Boat access is assigned **per member, per boat** now (not deferred) -
@@ -1079,11 +1080,12 @@ and screens on top of an already-adequate data model.
 (`POST /me/company`, wired to the existing company-code screen) sets a
 user's `companyId` but leaves `hasAccess=false` - that's already exactly
 the "pending member" state. So "adding a user" doesn't require inventing an
-invite/email flow at all: joining with the code *is* the request, and the
+invite/email flow at all: joining with the code _is_ the request, and the
 new Members screen is simply where an owner reviews and approves it.
 
 **Backend** (`backend/src/routes/companies.ts`, `boats.ts`,
 `lib/serialize.ts`):
+
 - `GET /companies/:id/boats` - the company's full boat list by name. Needed
   because even an owner's own `boatIds` (from `GET /me`) only reflects
   their personal `user_boats` rows, not necessarily every boat the company
@@ -1102,7 +1104,7 @@ new Members screen is simply where an owner reviews and approves it.
   grouped by every booker who has activity on that boat in the range.
 - **Found but not fixed**: the existing `GET /boats/:id/tours/summary`
   endpoint's `totalProvision` calculation looks buggy by the same standard -
-  it attributes a tour's *entire* price to a booker's provision if they
+  it attributes a tour's _entire_ price to a booker's provision if they
   booked even one group within that tour (`tour.groups.some(...)`), rather
   than just the price of their own group(s). Left alone since it predates
   this feature and wasn't part of what was asked for, but it's the same
@@ -1123,7 +1125,7 @@ use): confirmed `GET /companies/:id/boats` lists the test boat; confirmed
 demoting a company's sole owner is rejected with 409 and the exact expected
 message; confirmed approving a pending member (access + provision + boat
 assignment) applies correctly; confirmed promoting a second user to owner
-then makes demoting the *original* owner succeed (proving the "last owner"
+then makes demoting the _original_ owner succeed (proving the "last owner"
 count, not a blanket rule); confirmed a demoted owner's own token
 immediately loses permission to manage members on the very next call
 (re-checked per-request from the JWT-resolved user row, not cached) - this
@@ -1143,7 +1145,7 @@ exercised, same caveat as every other phase's initial pass).
 /boats/:id/tours/summary` now sums `group.price` only for the groups the
 caller themselves booked, instead of crediting the tour's entire price as
 soon as they'd booked anything on it. Verified with two different accounts
-booking on the *same* tour (mine: price 200, theirs: price 500, my
+booking on the _same_ tour (mine: price 200, theirs: price 500, my
 provision 20%) - `totalPrice` correctly stayed at 700 (the whole tour,
 unaffected), while `totalProvision` came back as 40 (200 × 20%, just my own
 group) instead of the old bug's 140 (700 × 20%, the whole tour). Both
@@ -1154,7 +1156,7 @@ nickname/provision at all** - found while investigating why the new
 Members/Performance buttons weren't appearing after testing locally (user's
 first guess was "I haven't committed yet," which doesn't apply: a local
 `flutter run` builds straight from the working directory, not from git -
-commit status only matters for what's *deployed*, e.g. to Render). The real
+commit status only matters for what's _deployed_, e.g. to Render). The real
 cause: `AuthProvider._userController` is a plain broadcast
 `StreamController`, which - unlike Firebase's old `authStateChanges()` that
 this replaced - never replays its last value to a subscriber that starts
@@ -1186,7 +1188,7 @@ leaving the two plugins for later.
 project-wide setting, not scoped per module - enabling it made the build
 fail hard on `mobile_scanner` 6.0.11 with "the
 'org.jetbrains.kotlin.android' plugin is no longer required... since AGP
-9.0," because AGP 9 actively rejects *any* module in the build (including
+9.0," because AGP 9 actively rejects _any_ module in the build (including
 a plugin's own bundled Gradle module) that still applies KGP the old way.
 So the three pieces aren't independently sequenceable the way they first
 looked - it's all-or-nothing: the app module and both plugins have to stop
@@ -1202,23 +1204,23 @@ incrementally.
 Found by the user: after an owner edited a member's provision via the new
 Members screen, Performance/the tour summary bar picked up the new number
 immediately (they always fetch fresh from the server), but if the owner
-edited *their own* row, their own Settings screen kept showing the old
+edited _their own_ row, their own Settings screen kept showing the old
 provision. Cause: `PATCH /companies/:id/members/:userId` isn't `/me` - it
 has no way to tell `AuthProvider` that the value it's already cached
 (`currentUser`, what Settings displays) is now stale, and nothing else
 triggers a refresh of that cache. Fixed in `members_screen.dart`'s
 `_MemberEditSheetState._save()`: after a successful update where the
-edited member *is* the signed-in user, it now also calls
+edited member _is_ the signed-in user, it now also calls
 `AuthProvider.refreshUser()` before closing the sheet, forcing a fresh
 `/me` fetch. Doesn't address the (harder, unrequested) case of one user
-editing *someone else's* provision - that other person's own device still
+editing _someone else's_ provision - that other person's own device still
 won't see it until their next sign-in, since there's no per-user push
 signal for `/me`-shaped data the way there is for tours/groups.
 
 ## Push a me:changed signal on member edits (2026-09-07)
 
-Closed the gap noted just above - the harder case (owner edits *someone
-else's* row; that person's own device, possibly a different session
+Closed the gap noted just above - the harder case (owner edits _someone
+else's_ row; that person's own device, possibly a different session
 entirely, has no way to know). Follows the exact same signal-then-refetch
 pattern as tours/groups, just with a new room kind that needs neither an
 explicit join call nor an access check, since a user always has access to
@@ -1248,7 +1250,7 @@ on a pending screen still holds a live connection joined to their own room.
 Checked what those screens do today: `no_code_home.dart` only calls
 `refreshUser()` once, right after submitting a company code (unrelated,
 pre-existing); `something_is_missing_screen.dart` (`Status.NoAccess` - code
-already accepted, waiting on an owner to grant `hasAccess`/boats) has *no*
+already accepted, waiting on an owner to grant `hasAccess`/boats) has _no_
 refresh path at all today - no button, no pull-to-refresh, nothing. The
 only way to notice an approval was a full app restart, which re-runs
 `AuthProvider()`'s startup sequence from scratch. Now, the moment an owner
@@ -1263,14 +1265,85 @@ how lightweight one connection is, but a real, if small, expansion of who
 holds a socket open.
 
 Verified against a local backend: connected as one account and subscribed
-to `meChanged`, then PATCHed that account's provision using a *completely
-different* account's token (the owner) - confirmed the signal arrived on
+to `meChanged`, then PATCHed that account's provision using a _completely
+different_ account's token (the owner) - confirmed the signal arrived on
 the first account's connection. Considered performance impact before
 building this (the user asked): negligible - reuses the single already-open
 socket connection (no new connection/battery cost), the room join is an
 in-memory operation with no extra DB query, the trigger (an owner editing
 someone's access/role/provision) is a rare admin action, and unlike a
 boat-room signal it never fans out to more than the one affected user.
+
+## Basic DDoS/abuse mitigation (2026-09-07)
+
+The user asked how protected the backend is against DDoS. Checked, honestly:
+not at all before this - `package.json` had no `express-rate-limit`, no
+`helmet`, nothing throttling by IP or user, and `cors()` doesn't count
+(browser-enforced header, does nothing against a script/botnet hitting the
+API directly). Added:
+
+- `lib/rate-limit.ts`: `generalRateLimiter` (300 req/min/IP, applied to the
+  whole app in `index.ts`) and `authRateLimiter` (20 req/min/IP, applied
+  only to `/auth/*`, since `POST /google` calls out to Google's own servers
+  per request and `POST /refresh`/`logout` each do real DB round-trips -
+  more expensive and more sensitive to abuse than a typical GET).
+- `sockets.ts`: a small per-connection sliding-window counter (30 events /
+  10s, shared across `join:boat`/`join:tour`/`leave:boat`/`leave:tour`)
+  guards the one socket-side gap - these already require a valid JWT, but
+  each one still runs a real DB query, so an authenticated client spamming
+  them could force repeated DB load. This is abuse-by-insider, not
+  anonymous DDoS, and much lower severity than the REST-side gap.
+
+**Verified for real, not just typechecked**: hit `POST /auth/refresh` 25
+times in a tight loop with a bogus token - the first 20 came back 401
+(rejected credential, as expected) and requests 21-25 came back 429,
+exactly matching the configured limit. Confirmed 10 rapid `/health` calls
+all still return 200 under the general limiter, so normal usage isn't
+affected.
+
+**Self-inflicted detour worth recording**: the first `npm install
+express-rate-limit` was run from the repo root instead of `backend/`,
+which created a stray `package.json`/`package-lock.json`/`node_modules` at
+the repo root (`backend/package.json` itself was untouched - confirmed via
+diff before assuming otherwise). Deleted all three stray root-level
+artifacts and reinstalled correctly from `backend/`. While investigating an
+unrelated `npm audit` question afterward, also ran a bare `rm -rf
+node_modules` in `backend/` to force a clean re-resolution, which wiped the
+generated Prisma client types and broke the typecheck
+(`Module '"@prisma/client"' has no exported member 'User'`) until `npx
+prisma generate` was re-run - Prisma's client types are generated into
+`node_modules/@prisma/client` from `schema.prisma` and aren't restored by
+`npm install` alone. Confirmed via `git diff --stat package-lock.json`
+(48 insertions, 0 deletions - purely additive) that no other package's
+locked version drifted as a side effect.
+
+**Further findings from `npm audit`, not yet acted on** (found while
+installing, adjacent to but distinct from the rate-limiting task):
+
+- `qs` (moderate, DoS via attacker-controlled input) via `body-parser` →
+  `express` - this one's real: `express`/`body-parser` are runtime
+  dependencies that parse every incoming request, so this is
+  network-reachable in production, not just a theoretical transitive
+  finding.
+- `uuid` (moderate, missing buffer bounds check) via `gaxios` →
+  `google-auth-library` - also a runtime dependency (used to verify Google
+  idTokens in `POST /auth/google`), though exploitability depends on
+  whether `gaxios` actually hits the specific vulnerable code path
+  (passing an explicit `buf`) - not confirmed either way.
+- `deepmerge-ts` (high, stack exhaustion) via `@prisma/config` → `prisma` -
+  this one's low real-world priority: `prisma` here is a dev-only CLI tool
+  (migrations/codegen), never part of the running server that accepts
+  network requests.
+- Plain `npm audit fix` doesn't resolve any of the three (dry-run showed it
+  would only add a pile of unrelated `@esbuild/*` platform binaries,
+  leaving all 3 advisories listed as still needing `--force`). Forcing
+  would mean breaking major-version bumps to `express`, `prisma`, and/or
+  `google-auth-library` - same category of decision as the deferred
+  `mobile_scanner`/`share_plus` bumps, so left alone pending the user's
+  call rather than done unprompted. A `package.json` "overrides" field
+  forcing just the patched leaf versions (`qs`, `uuid`) without bumping
+  their parents might be possible without a breaking change - worth a
+  dedicated look if this gets prioritized.
 
 ## Open items (need user input)
 
@@ -1285,3 +1358,10 @@ boat-room signal it never fans out to more than the one affected user.
 - The new Members/Performance screens (and the settings-screen fix) haven't
   been tried in the actual running app on a device yet, only the API
   surface for the former.
+- `qs`/`uuid`/`deepmerge-ts` `npm audit` findings - not fixed, needs a
+  decision on forcing major-version bumps vs. a targeted `overrides` entry
+  (see "Basic DDoS/abuse mitigation").
+- Plaintext release-signing credentials committed in
+  `android/gradle.properties` (see "Basic DDoS/abuse mitigation") -
+  currently inert but sitting in git history.
+- Confirm Render's actual `CORS_ORIGIN` isn't left at the `"*"` default.

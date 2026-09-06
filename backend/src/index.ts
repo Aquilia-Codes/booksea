@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import { env } from "./lib/env";
 import { HttpError } from "./lib/http-error";
 import { attachRealtime } from "./lib/realtime";
+import { generalRateLimiter, authRateLimiter } from "./lib/rate-limit";
 import { registerSockets } from "./sockets";
 
 import authRoutes from "./routes/auth";
@@ -18,13 +19,14 @@ import companyRoutes from "./routes/companies";
 const app = express();
 app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(express.json());
+app.use(generalRateLimiter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/", (_req, res) =>
   res.json({ name: "booksea-backend", status: "ok", health: "/health" }),
 );
 
-app.use("/auth", authRoutes);
+app.use("/auth", authRateLimiter, authRoutes);
 app.use("/me", meRoutes);
 app.use("/boats", boatRoutes);
 app.use("/tours", tourRoutes);
