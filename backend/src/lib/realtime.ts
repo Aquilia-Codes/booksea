@@ -22,3 +22,14 @@ export function emitSummaryChanged(boatId: string) {
 export function emitGroupsChanged(tourId: string) {
   io?.to(`tour:${tourId}`).emit("groups:changed");
 }
+
+// Every authenticated socket auto-joins its own `user:<id>` room at
+// connection time (see sockets.ts) - unlike the boat/tour rooms, this
+// needs no explicit join call or access check, since a user always has
+// "access" to their own data. Used so a device notices when someone else
+// (an owner, via PATCH /companies/:id/members/:userId) changes this user's
+// own access/role/provision - AuthProvider has no other way to learn that
+// happened, since it wasn't a change made through /me.
+export function emitMeChanged(userId: string) {
+  io?.to(`user:${userId}`).emit("me:changed");
+}

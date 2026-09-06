@@ -26,11 +26,20 @@ class RealtimeClient {
   final _toursChangedController = StreamController<void>.broadcast();
   final _summaryChangedController = StreamController<void>.broadcast();
   final _groupsChangedController = StreamController<void>.broadcast();
+  final _meChangedController = StreamController<void>.broadcast();
   final _connectedController = StreamController<void>.broadcast();
 
   Stream<void> get toursChanged => _toursChangedController.stream;
   Stream<void> get summaryChanged => _summaryChangedController.stream;
   Stream<void> get groupsChanged => _groupsChangedController.stream;
+
+  /// Fires when someone else (an owner, via
+  /// PATCH /companies/:id/members/:userId) changes this signed-in user's
+  /// own access/role/provision. Unlike tours/groups, there's no join call
+  /// for this - every authenticated socket is auto-joined to its own
+  /// `user:<id>` room server-side (see sockets.ts), since a user always has
+  /// access to their own data. AuthProvider is the only consumer.
+  Stream<void> get meChanged => _meChangedController.stream;
 
   /// Fires whenever the socket (re)connects, including the very first
   /// connect. Rooms don't survive a reconnect - Socket.IO gives a
@@ -69,10 +78,17 @@ class RealtimeClient {
     socket.on('tours:changed', (_) => _toursChangedController.add(null));
     socket.on('summary:changed', (_) => _summaryChangedController.add(null));
     socket.on('groups:changed', (_) => _groupsChangedController.add(null));
+    socket.on('me:changed', (_) => _meChangedController.add(null));
 
     _socket = socket;
     return socket;
   }
+
+  /// Ensures the socket exists and is (re)connecting. `meChanged` has no
+  /// join call to piggyback on the way joinBoat/joinTour implicitly create
+  /// the socket for the other streams, so AuthProvider calls this directly
+  /// once it wants to start listening.
+  void connect() => _ensureSocket();
 
   Future<bool> joinBoat(String boatId) async {
     _boatRefCounts[boatId] = (_boatRefCounts[boatId] ?? 0) + 1;

@@ -46,6 +46,7 @@ const _refreshTokenPrefsKey = 'booksea_refresh_token';
 class AuthProvider extends ChangeNotifier {
   final ApiClient _client = ApiClient.instance;
   final _userController = StreamController<UserModel>.broadcast();
+  StreamSubscription<void>? _meChangedSub;
 
   Status _status = Status.Uninitialized;
   String? _companyId;
@@ -128,7 +129,23 @@ class AuthProvider extends ChangeNotifier {
       _status = Status.Authenticated;
     }
     _userController.add(userModel);
+    _listenForMeChanges();
     notifyListeners();
+  }
+
+  // Lets this device notice when an owner changes *this* user's own
+  // access/role/provision from somewhere else (see
+  // members_screen.dart / backend's emitMeChanged) - a PATCH to
+  // /companies/:id/members/:userId never goes through /me, so nothing else
+  // would tell this session its cached UserModel is stale. Subscribes at
+  // most once per signed-in session (repeated _refreshUserAndStatus calls,
+  // e.g. from no_code_home.dart, shouldn't stack up duplicate listeners);
+  // signOut() cancels it.
+  void _listenForMeChanges() {
+    if (_meChangedSub != null) return;
+    RealtimeClient.instance.connect();
+    _meChangedSub = RealtimeClient.instance.meChanged
+        .listen((_) => _refreshUserAndStatus());
   }
 
   // Returns the signed-in user on success, or null if the user cancelled
@@ -160,6 +177,8 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     final refreshToken = _client.refreshToken;
     _client.clearTokens();
+    await _meChangedSub?.cancel();
+    _meChangedSub = null;
     RealtimeClient.instance.disconnect();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_refreshTokenPrefsKey);

@@ -1170,6 +1170,108 @@ synchronous getter for the already-known current value) and passing it as
 `StreamBuilder(initialData: currentUser, ...)` - `user` (the stream) is
 only ever consumed in this one file, so this was safe to fix in isolation.
 
+## Kotlin Gradle Plugin migration - attempted, reverted (2026-09-07)
+
+`flutter build apk` warns that `android/app/build.gradle` manually applies
+the Kotlin Gradle Plugin (KGP), which AGP 9+ will eventually reject, and
+that `mobile_scanner`/`share_plus` do the same internally. Tried fixing
+just the app's own module (remove `kotlin-android`/
+`org.jetbrains.kotlin.android` from its `plugins{}`, replace
+`kotlinOptions{}` with the new `kotlin { compilerOptions {...} }` DSL, flip
+`android.builtInKotlin=true` in `gradle.properties` so `MainActivity.kt`
+still compiles without a separately-applied plugin) while deliberately
+leaving the two plugins for later.
+
+**This doesn't work as a partial fix.** AGP 9's built-in Kotlin is a
+project-wide setting, not scoped per module - enabling it made the build
+fail hard on `mobile_scanner` 6.0.11 with "the
+'org.jetbrains.kotlin.android' plugin is no longer required... since AGP
+9.0," because AGP 9 actively rejects *any* module in the build (including
+a plugin's own bundled Gradle module) that still applies KGP the old way.
+So the three pieces aren't independently sequenceable the way they first
+looked - it's all-or-nothing: the app module and both plugins have to stop
+applying KGP in the same pass, or none of them can yet. Reverted both
+changed files back to their committed state and confirmed the build
+succeeds again (warning-only, as before). Left alone for now per the
+user's call - revisit as one combined pass (app module change + both
+plugin major-version bumps + re-test QR scanning/sharing) rather than
+incrementally.
+
+## Provision edits didn't refresh the editor's own Settings screen (2026-09-07)
+
+Found by the user: after an owner edited a member's provision via the new
+Members screen, Performance/the tour summary bar picked up the new number
+immediately (they always fetch fresh from the server), but if the owner
+edited *their own* row, their own Settings screen kept showing the old
+provision. Cause: `PATCH /companies/:id/members/:userId` isn't `/me` - it
+has no way to tell `AuthProvider` that the value it's already cached
+(`currentUser`, what Settings displays) is now stale, and nothing else
+triggers a refresh of that cache. Fixed in `members_screen.dart`'s
+`_MemberEditSheetState._save()`: after a successful update where the
+edited member *is* the signed-in user, it now also calls
+`AuthProvider.refreshUser()` before closing the sheet, forcing a fresh
+`/me` fetch. Doesn't address the (harder, unrequested) case of one user
+editing *someone else's* provision - that other person's own device still
+won't see it until their next sign-in, since there's no per-user push
+signal for `/me`-shaped data the way there is for tours/groups.
+
+## Push a me:changed signal on member edits (2026-09-07)
+
+Closed the gap noted just above - the harder case (owner edits *someone
+else's* row; that person's own device, possibly a different session
+entirely, has no way to know). Follows the exact same signal-then-refetch
+pattern as tours/groups, just with a new room kind that needs neither an
+explicit join call nor an access check, since a user always has access to
+their own data:
+
+- `sockets.ts`: every socket auto-joins `user:<their own id>` right at
+  connection time (no `join:user` event needed - the server already knows
+  who they are from the JWT).
+- `lib/realtime.ts`: `emitMeChanged(userId)`, called from the
+  `PATCH /companies/:id/members/:userId` handler right after a successful
+  update, targeting whoever was just edited (not the caller).
+- `RealtimeClient`: new `meChanged` stream, fed by a `me:changed` socket
+  listener. Added a `connect()` method since, unlike the boat/tour streams,
+  there's no `joinBoat`/`joinTour` call to implicitly create the socket for
+  this one to piggyback on.
+- `AuthProvider`: subscribes to `meChanged` once per signed-in session
+  (guarded so repeated `_refreshUserAndStatus()` calls, e.g. from
+  `no_code_home.dart`, don't stack up duplicate listeners) and calls its
+  own `refreshUser()` when it fires; `signOut()` cancels the subscription.
+
+**Side effect: `NoCode`/`NoAccess` users now auto-transition the moment
+they're approved, with no restart needed.** `_listenForMeChanges()` is
+called unconditionally inside `_refreshUserAndStatus()` - it doesn't check
+what status resulted, only that `/me` was successfully fetched - and the
+socket's auth middleware doesn't check `hasAccess` either, so a user stuck
+on a pending screen still holds a live connection joined to their own room.
+Checked what those screens do today: `no_code_home.dart` only calls
+`refreshUser()` once, right after submitting a company code (unrelated,
+pre-existing); `something_is_missing_screen.dart` (`Status.NoAccess` - code
+already accepted, waiting on an owner to grant `hasAccess`/boats) has *no*
+refresh path at all today - no button, no pull-to-refresh, nothing. The
+only way to notice an approval was a full app restart, which re-runs
+`AuthProvider()`'s startup sequence from scratch. Now, the moment an owner
+flips `hasAccess`, this device gets `me:changed`, refetches `/me`, and
+`notifyListeners()` fires - which `MyApp`'s top-level
+`switch (authProviderRef.status)` is already watching, so it swaps
+straight from that screen to the real app on its own. Trade-off worth
+naming rather than a bug: previously only a user who'd reached a boat/tour
+screen held an open realtime connection; now any signed-in user does, even
+one stuck indefinitely in a pending state. Not worth guarding against given
+how lightweight one connection is, but a real, if small, expansion of who
+holds a socket open.
+
+Verified against a local backend: connected as one account and subscribed
+to `meChanged`, then PATCHed that account's provision using a *completely
+different* account's token (the owner) - confirmed the signal arrived on
+the first account's connection. Considered performance impact before
+building this (the user asked): negligible - reuses the single already-open
+socket connection (no new connection/battery cost), the room join is an
+in-memory operation with no extra DB query, the trigger (an owner editing
+someone's access/role/provision) is a rare admin action, and unlike a
+boat-room signal it never fans out to more than the one affected user.
+
 ## Open items (need user input)
 
 - ~~Confirm the multi-owner recommendation~~ - decided (multi-owner) and

@@ -30,6 +30,12 @@ export function registerSockets(io: Server) {
   io.on("connection", (socket) => {
     const authed = socket as AuthedSocket;
 
+    // Every socket automatically gets its own user room - unlike
+    // boat/tour rooms, this needs no explicit join call or access check,
+    // since a user always has access to their own data. See
+    // lib/realtime.ts's emitMeChanged.
+    socket.join(`user:${authed.data.user.id}`);
+
     // boatId here is the boat's *name*, not its UUID - every client caller
     // follows the same "boatId is really the name" convention the REST
     // routes use (see getBoatByName's comment in lib/authz.ts). Resolve it

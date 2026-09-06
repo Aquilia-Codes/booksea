@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/auth";
 import { serializeBoat, serializeMember } from "../lib/serialize";
 import { HttpError } from "../lib/http-error";
 import { wrap } from "../lib/wrap";
+import { emitMeChanged } from "../lib/realtime";
 
 const router = Router();
 router.use(requireAuth);
@@ -146,6 +147,14 @@ router.patch(
       }
       return user;
     });
+
+    // Lets the edited user's own device notice, even if it's a different
+    // signed-in session than the owner's - see docs/migration-notes.md
+    // "Push a me:changed signal on member edits". A PATCH here never goes
+    // through /me, so without this their AuthProvider's cached UserModel
+    // (what Settings displays) would otherwise stay stale until their next
+    // sign-in.
+    emitMeChanged(updated.id);
 
     res.json(serializeMember(updated, await boatNamesFor(updated.id)));
   }),

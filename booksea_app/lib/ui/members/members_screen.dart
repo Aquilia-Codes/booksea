@@ -238,6 +238,15 @@ class _MemberEditSheetState extends State<_MemberEditSheet> {
         provision: int.tryParse(_provisionController.text) ?? 0,
         boatNames: _selectedBoats.toList(),
       );
+      // This PATCHes /companies/:id/members/:userId, not /me - so if the
+      // owner just edited their own row, AuthProvider's cached UserModel
+      // (what settings_screen.dart displays) has no way to know anything
+      // changed. Performance/summary screens always fetch fresh from the
+      // server so they're unaffected, but Settings would otherwise keep
+      // showing the pre-edit provision until the next sign-in.
+      if (widget.isSelf && mounted) {
+        await Provider.of<AuthProvider>(context, listen: false).refreshUser();
+      }
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
