@@ -1048,11 +1048,138 @@ manual restart, and a real Postgres instance this project is now
 responsible for backing up and eventually paying for past the 30-day free
 trial - full control traded for full ownership of the operational burden.
 
+## Members and performance (2026-09-06)
+
+First feature built on top of the finished migration rather than as part of
+it - multi-owner support, an owner-facing screen to approve/configure
+company members, and a performance view (tickets/price/provision booked,
+by date range). Decided multi-owner (a company can have more than one
+`isOwner=true` user); needed no schema change at all - `isOwner`,
+`provision`, and the `user_boats` join table already existed with no
+uniqueness constraint prohibiting it, and `booking_groups.bookerId` already
+linked every booking to whoever made it. All of it was purely new routes
+and screens on top of an already-adequate data model.
+
+**Design decisions** (asked and answered before building):
+- Only an **owner** (not admin) can approve access, change roles, or set
+  provision - keeps admins operational, owners handle people/money.
+- Boat access is assigned **per member, per boat** now (not deferred) -
+  uses the existing `user_boats` table properly rather than a company-wide
+  on/off switch.
+- Performance is **date-range filterable** from the start, not just
+  all-time totals.
+- Each user sees only **their own** performance; an owner additionally sees
+  **everyone's** (a "team" view) - individual numbers stay private between
+  staff otherwise.
+- Removing a company's **last remaining owner is hard-blocked server-side**
+  (409), not just a client-side warning - an ownerless company would need a
+  direct database fix to recover from.
+
+**No invite system was built.** The self-join flow already in place
+(`POST /me/company`, wired to the existing company-code screen) sets a
+user's `companyId` but leaves `hasAccess=false` - that's already exactly
+the "pending member" state. So "adding a user" doesn't require inventing an
+invite/email flow at all: joining with the code *is* the request, and the
+new Members screen is simply where an owner reviews and approves it.
+
+**Backend** (`backend/src/routes/companies.ts`, `boats.ts`,
+`lib/serialize.ts`):
+- `GET /companies/:id/boats` - the company's full boat list by name. Needed
+  because even an owner's own `boatIds` (from `GET /me`) only reflects
+  their personal `user_boats` rows, not necessarily every boat the company
+  has - there was no existing "list all boats in my company" endpoint.
+- `GET /companies/:id/members` / `PATCH /companies/:id/members/:userId` -
+  owner-only; list and update `hasAccess`/`isAdmin`/`isOwner`/`provision`/
+  boat assignments. The PATCH counts other owners before allowing
+  `isOwner: false` on someone who currently has it, rejecting with 409 if
+  it would hit zero.
+- `GET /boats/:id/performance?from=&to=` - the caller's own ticket count/
+  total booked price/provision earned, computed per-`booking_group` (not
+  per-tour - each group's own price feeds the calculation, so a booker's
+  number reflects only what they personally booked, not everyone's on a
+  tour they happened to touch).
+- `GET /boats/:id/performance/team?from=&to=` - owner-only, same shape
+  grouped by every booker who has activity on that boat in the range.
+- **Found but not fixed**: the existing `GET /boats/:id/tours/summary`
+  endpoint's `totalProvision` calculation looks buggy by the same standard -
+  it attributes a tour's *entire* price to a booker's provision if they
+  booked even one group within that tour (`tour.groups.some(...)`), rather
+  than just the price of their own group(s). Left alone since it predates
+  this feature and wasn't part of what was asked for, but it's the same
+  class of bug the new performance endpoints were deliberately built to
+  avoid, and would give a visibly wrong number next to the new "your
+  provision" figure if a booker ever shares a tour with someone else.
+
+**Flutter**: new `MemberModel`/`PerformanceModel`/`TeamPerformanceEntry`,
+matching `ApiDatabase` methods, and two new screens - `members_screen.dart`
+(list + edit sheet with access/role/provision switches and a boat
+`FilterChip` picker) and `performance_screen.dart` (date-range pickers, own
+stats card, owner-only team list). Both reached from new buttons on
+`settings_screen.dart`, gated on `isOwner` from the already-in-scope
+`UserModel` stream where relevant - no `AuthProvider` changes needed.
+
+**Verified** against a local backend with throwaway scripts (deleted after
+use): confirmed `GET /companies/:id/boats` lists the test boat; confirmed
+demoting a company's sole owner is rejected with 409 and the exact expected
+message; confirmed approving a pending member (access + provision + boat
+assignment) applies correctly; confirmed promoting a second user to owner
+then makes demoting the *original* owner succeed (proving the "last owner"
+count, not a blanket rule); confirmed a demoted owner's own token
+immediately loses permission to manage members on the very next call
+(re-checked per-request from the JWT-resolved user row, not cached) - this
+surfaced as a test-script bug (tried to "undo" its own demotion with the
+now-non-owner token) rather than a real one, and was fixed by restoring
+state with the new owner's token instead; and confirmed the performance
+math itself end-to-end with a real booking (3 adults + 1 child, price 300,
+provision 20% → `getMyPerformance` and `getTeamPerformance` both returned
+exactly tickets=4, totalPrice=300, provision=60).
+
+Not yet tested: the actual Flutter UI on a device (only the API surface was
+exercised, same caveat as every other phase's initial pass).
+
+## Two more bugs found and fixed the same day (2026-09-06)
+
+**1. The `totalProvision` bug flagged above is fixed.** `GET
+/boats/:id/tours/summary` now sums `group.price` only for the groups the
+caller themselves booked, instead of crediting the tour's entire price as
+soon as they'd booked anything on it. Verified with two different accounts
+booking on the *same* tour (mine: price 200, theirs: price 500, my
+provision 20%) - `totalPrice` correctly stayed at 700 (the whole tour,
+unaffected), while `totalProvision` came back as 40 (200 × 20%, just my own
+group) instead of the old bug's 140 (700 × 20%, the whole tour). Both
+accounts' groups deleted and provision reset back to 0 after.
+
+**2. `SettingsScreen` has never actually shown a signed-in user's
+nickname/provision at all** - found while investigating why the new
+Members/Performance buttons weren't appearing after testing locally (user's
+first guess was "I haven't committed yet," which doesn't apply: a local
+`flutter run` builds straight from the working directory, not from git -
+commit status only matters for what's *deployed*, e.g. to Render). The real
+cause: `AuthProvider._userController` is a plain broadcast
+`StreamController`, which - unlike Firebase's old `authStateChanges()` that
+this replaced - never replays its last value to a subscriber that starts
+listening late. `SettingsScreen`'s `StreamBuilder` only starts listening
+when the user actually taps over to that tab, well after the one emission
+for the current session already fired during sign-in, so it saw
+`snapshot.hasData == false` forever and rendered nothing - not just the two
+new buttons (which live in that same `if (snapshot.hasData)` branch), but
+the nickname/provision content that's supposedly existed since before this
+migration. Confirmed with the user this has "never" worked, not a
+regression from today. Fixed by adding `AuthProvider.currentUser` (a
+synchronous getter for the already-known current value) and passing it as
+`StreamBuilder(initialData: currentUser, ...)` - `user` (the stream) is
+only ever consumed in this one file, so this was safe to fix in isolation.
+
 ## Open items (need user input)
 
-- Confirm the multi-owner recommendation above (or pick single-owner) before
-  it's built into the schema/`companies`/`users` routes.
-- Who can grant `hasAccess`/`isAdmin`/boat assignments day-to-day — a real
-  admin-facing endpoint doesn't exist yet, only the data model supports it.
+- ~~Confirm the multi-owner recommendation~~ - decided (multi-owner) and
+  built, see "Members and performance."
+- ~~Who can grant `hasAccess`/`isAdmin`/boat assignments day-to-day~~ - done,
+  the owner-only Members screen, see "Members and performance."
 - ~~`kBypassFirebaseAuth` (auth_provider.dart) and the `Firebase.initializeApp()`
   try/catch (main.dart)~~ - done, see phase 8.
+- ~~The pre-existing `totalProvision` bug in `GET /boats/:id/tours/summary`~~
+  - fixed, see "Two more bugs found and fixed the same day."
+- The new Members/Performance screens (and the settings-screen fix) haven't
+  been tried in the actual running app on a device yet, only the API
+  surface for the former.

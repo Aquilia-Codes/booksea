@@ -1,5 +1,7 @@
 import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/providers/auth_provider.dart';
+import 'package:booksea_app/routes.dart';
+import 'package:booksea_app/ui/performance/performance_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +12,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
+    final currentUser = authProvider.currentUser;
     final photoUrl = authProvider.photoUrl;
 
     return Scaffold(
@@ -59,6 +62,12 @@ class SettingsScreen extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     child: StreamBuilder<UserModel>(
                       stream: user,
+                      // Without this, a broadcast stream that already
+                      // emitted once (during sign-in, before this screen
+                      // ever mounted) leaves a fresh subscriber with no
+                      // data at all - see AuthProvider.currentUser's doc
+                      // comment.
+                      initialData: currentUser,
                       builder: (context, snapshot) {
                         print(snapshot.data?.email);
                         print(snapshot.data?.nickname);
@@ -129,6 +138,29 @@ class SettingsScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              SizedBox(height: 16),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => PerformanceScreen(
+                                      isOwner: snapshot.data!.isOwner,
+                                    ),
+                                  ));
+                                },
+                                icon: Icon(Icons.bar_chart),
+                                label: Text('Performance'),
+                              ),
+                              if (snapshot.data!.isOwner) ...[
+                                SizedBox(height: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context)
+                                        .pushNamed(Routes.members);
+                                  },
+                                  icon: Icon(Icons.group),
+                                  label: Text('Manage Members'),
+                                ),
+                              ],
                             ],
                           );
                         } else {

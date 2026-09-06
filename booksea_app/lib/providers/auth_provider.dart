@@ -61,6 +61,14 @@ class AuthProvider extends ChangeNotifier {
   // the Google Sign-In SDK directly, so it's still there after a session
   // restore, not just right after an interactive sign-in.
   String? get photoUrl => _currentUser.photoUrl;
+  // A plain broadcast stream never replays its last value to a late
+  // subscriber (unlike Firebase's old authStateChanges(), which this
+  // replaced) - settings_screen.dart's StreamBuilder only starts listening
+  // when the user actually navigates to that tab, well after this stream's
+  // one emission for the current session already happened, so it would
+  // otherwise see no data at all. Exposed so that screen can seed its
+  // StreamBuilder with `initialData: currentUser` instead.
+  UserModel get currentUser => _currentUser;
   Stream<UserModel> get user => _userController.stream;
 
   AuthProvider() {

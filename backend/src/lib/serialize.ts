@@ -1,4 +1,4 @@
-import type { Boat, BookingGroup, Tour, TourType } from "@prisma/client";
+import type { Boat, BookingGroup, Tour, TourType, User } from "@prisma/client";
 import type { TourTotals } from "./prisma";
 
 // Field names below match what the existing Dart models' fromMap() expect
@@ -37,6 +37,22 @@ export function serializeTour(tour: Tour & { tourType?: TourType | null }, total
     price: totals ? Number(totals.price) : 0,
     isBooked: tour.isBooked,
     note: tour.note,
+  };
+}
+
+// Used by the owner-facing Members screen (GET/PATCH /companies/:id/members) -
+// boatNames (not boat UUIDs) to match the same "boatId is really the name"
+// convention the rest of the app uses (see authz.ts's getBoatByName).
+export function serializeMember(user: User, boatNames: string[]) {
+  return {
+    id: user.id,
+    email: user.email,
+    nickname: user.nickname,
+    hasAccess: user.hasAccess,
+    isAdmin: user.isAdmin,
+    isOwner: user.isOwner,
+    provision: Number(user.provision),
+    boatNames,
   };
 }
 

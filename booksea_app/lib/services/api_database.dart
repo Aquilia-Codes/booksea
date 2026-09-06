@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:booksea_app/models/boat_model.dart';
+import 'package:booksea_app/models/member_model.dart';
+import 'package:booksea_app/models/performance_model.dart';
 import 'package:booksea_app/models/user_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
 import 'package:booksea_app/models/group_model.dart';
@@ -337,5 +339,81 @@ class ApiDatabase {
       },
     );
     return controller.stream;
+  }
+
+  /* Members section (owner-only) */
+
+  // getCompanyBoats -> GET /companies/:id/boats
+  // The full list of the company's boats, by name - used by the member
+  // editor's boat-assignment picker. Not the same as a user's own boatIds
+  // (see the backend route's comment) - that only reflects that user's
+  // personal boat assignments, which may not be every boat the company has.
+  Future<List<BoatModel>> getCompanyBoats(String companyId) async {
+    final data = await _client.get('/companies/${_seg(companyId)}/boats')
+        as List<dynamic>;
+    return data
+        .map((e) =>
+            BoatModel.fromMap(e as Map<String, dynamic>, e['id'] as String))
+        .toList();
+  }
+
+  // getCompanyMembers -> GET /companies/:id/members
+  Future<List<MemberModel>> getCompanyMembers(String companyId) async {
+    final data = await _client.get('/companies/${_seg(companyId)}/members')
+        as List<dynamic>;
+    return data
+        .map((e) => MemberModel.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // updateMember -> PATCH /companies/:id/members/:userId
+  // Only the fields the caller actually wants to change need to be passed -
+  // matches the backend's Zod schema, where every field is optional.
+  Future<MemberModel> updateMember(
+    String companyId,
+    String userId, {
+    bool? hasAccess,
+    bool? isAdmin,
+    bool? isOwner,
+    int? provision,
+    List<String>? boatNames,
+  }) async {
+    final data = await _client.patch(
+      '/companies/${_seg(companyId)}/members/${_seg(userId)}',
+      {
+        if (hasAccess != null) 'hasAccess': hasAccess,
+        if (isAdmin != null) 'isAdmin': isAdmin,
+        if (isOwner != null) 'isOwner': isOwner,
+        if (provision != null) 'provision': provision,
+        if (boatNames != null) 'boatNames': boatNames,
+      },
+    ) as Map<String, dynamic>;
+    return MemberModel.fromMap(data);
+  }
+
+  /* Performance section */
+
+  // getMyPerformance -> GET /boats/:id/performance
+  Future<PerformanceModel> getMyPerformance(
+      String boatId, DateTime startTime, DateTime endTime) async {
+    final data =
+        await _client.get('/boats/${_seg(boatId)}/performance', query: {
+      'from': startTime.toUtc().toIso8601String(),
+      'to': endTime.toUtc().toIso8601String(),
+    }) as Map<String, dynamic>;
+    return PerformanceModel.fromMap(data);
+  }
+
+  // getTeamPerformance -> GET /boats/:id/performance/team (owner-only)
+  Future<List<TeamPerformanceEntry>> getTeamPerformance(
+      String boatId, DateTime startTime, DateTime endTime) async {
+    final data = await _client
+        .get('/boats/${_seg(boatId)}/performance/team', query: {
+      'from': startTime.toUtc().toIso8601String(),
+      'to': endTime.toUtc().toIso8601String(),
+    }) as List<dynamic>;
+    return data
+        .map((e) => TeamPerformanceEntry.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 }
