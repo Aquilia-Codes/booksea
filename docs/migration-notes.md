@@ -871,6 +871,68 @@ Not yet done: trying this in the actual running app on a device/emulator
 (only the Dart-level API surface has been verified so far, not the
 `StreamBuilder`-driven UI actually re-rendering on a push).
 
+## Phase 7 follow-up: a real join:boat bug, plus the remaining uncached streams (2026-09-05)
+
+After testing on a device, the user reported a brief freeze and general
+sluggishness. That specific report was never conclusively root-caused (could
+plausibly be ordinary debug-build/shader-compilation overhead), but chasing
+it surfaced two real, worth-fixing issues.
+
+**1. `TourDataStream` (home.dart) and the search results list
+(search_and_filter.dart) were still recreating their streams inline in
+`build()`**, the same "Future/Stream recreated on every rebuild" anti-pattern
+fixed everywhere else earlier in phase 7. Under the old polling this was
+just wasteful; under socket rooms it meant a real leave+rejoin network
+round-trip on every rebuild - `TourDataStream` on every date-picker change,
+and the search screen on *every single filter tap* (passenger count,
+tour-type chips, dates), which is a much hotter path.
+
+Fixed differently in each case, since the right shape of fix differs:
+- `TourDataStream` was converted from `StatelessWidget` to a proper
+  `StatefulWidget` caching both streams in `initState`/`didUpdateWidget`,
+  only re-deriving them when `boatId` or the selected day actually changed -
+  the same pattern used elsewhere in the file (`GroupDataStream`, the group
+  popups' cached futures).
+- The search screen's case is different: a filter change is *supposed* to
+  produce a new search, so recomputing the fetch on every rebuild is
+  correct, not a bug - `searchTours` was changed from a
+  `Stream<List<TourModel>>` (which owned a join + a fixed fetch) to a plain
+  one-shot `Future<List<TourModel>>`, wired to a `FutureBuilder` exactly
+  like the original inline call, just without the socket-room cost per
+  call. A new `ApiDatabase.watchBoatTourChanges(boatId)` was added
+  separately - joins the boat's room once for the screen's lifetime (via
+  `initState`/`dispose`, rejoining only when the boat dropdown actually
+  changes) and just triggers an empty `setState()` on a signal, which is
+  what makes the already-inline `searchTours` call re-run.
+
+**2. While re-verifying end to end, found that `getToursStream` and
+`getSumOfPriceStream` had never actually been receiving push updates at
+all**, despite phase 7's own verification passing. That verification only
+exercised `getGroups` (joins by `tourId`, a real UUID everywhere in this
+app) - it never exercised the `joinBoat` path at all, which is what
+`getToursStream`/`getSumOfPriceStream`/`searchTours` all depend on. The bug:
+`sockets.ts`'s `join:boat` handler called `getAccessibleBoat`, which looks a
+boat up **by its UUID primary key** - but every client caller passes the
+boat's *name* (`"Catamaran"`), matching the same "boatId is really the
+name" convention the REST boat routes already handle via `getBoatByName`
+(see `lib/authz.ts`). So `join:boat` was silently failing (caught, acked
+`false`) on every call, the socket never actually entered the
+`boat:<uuid>` room, and `emitToursChanged`/`emitSummaryChanged` (which
+always broadcast using the real UUID) never reached it. The initial fetch
+still worked fine (plain REST, independent of socket state), which is
+exactly why this went unnoticed - the tour list and price summary loaded
+correctly, they just silently never got a single push update afterwards.
+
+Fixed by resolving `join:boat`/`leave:boat` with `getBoatByName` instead of
+`getAccessibleBoat`, and joining/leaving using the *resolved* UUID so the
+room key actually matches what the REST routes broadcast to. Re-verified
+both the search screen's `watchBoatTourChanges` and, specifically,
+`getToursStream` itself (the one home.dart actually uses) with the same
+kind of throwaway "subscribe, then trigger a REST change, confirm a push
+emission arrives" script used in phase 7 - both now pass. Lesson for next
+time: when a stream/room is boat-scoped, verify with a boat-scoped
+call specifically - the tour-scoped one passing proved nothing about it.
+
 ## Open items (need user input)
 
 - Confirm the multi-owner recommendation above (or pick single-owner) before

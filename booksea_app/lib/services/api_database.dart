@@ -280,35 +280,62 @@ class ApiDatabase {
 
   /* Search section */
 
-  // searchTours -> GET /boats/:id/tours/search (socket.io push)
-  // Scoped to the same 'boat:<id>' room as getToursStream/getSumOfPriceStream
-  // - the search itself is just a filtered view over that boat's tours, so
-  // any tour change on the boat is exactly what should trigger a re-search.
-  Stream<List<TourModel>> searchTours(
+  // searchTours -> GET /boats/:id/tours/search
+  // One-shot fetch, not a stream - the search screen recomputes this on
+  // every rebuild anyway (several independent filter controls feed it, so
+  // there's no single "did the relevant thing change" check worth writing),
+  // and unlike getToursStream/getSumOfPriceStream a plain REST call has no
+  // per-call socket-room cost, so recomputing it per rebuild is cheap.
+  // Reacting to *pushed* changes (as opposed to the user's own filter
+  // edits) is handled separately by watchBoatTourChanges below, which the
+  // search screen joins once for its own lifetime instead of once per
+  // keystroke/filter tap.
+  Future<List<TourModel>> searchTours(
       String companyId,
       String boatId,
       List<String> tourTypeNames,
       DateTime startTime,
       DateTime endTime,
-      int count) {
-    return _realtimeStream(
-      join: () => _realtime.joinBoat(boatId),
-      leave: () => _realtime.leaveBoat(boatId),
-      changes: _realtime.toursChanged,
-      fetch: () async {
-        final data =
-            await _client.get('/boats/${_seg(boatId)}/tours/search', query: {
-          'types': tourTypeNames.join(','),
-          'from': startTime.toUtc().toIso8601String(),
-          'to': endTime.toUtc().toIso8601String(),
-          'seats': count.toString(),
-        }) as List<dynamic>;
-        return data
-            .map((e) => TourModel.fromMap(
-                e as Map<String, dynamic>, e['id'] as String))
-            .toList();
+      int count) async {
+    final data =
+        await _client.get('/boats/${_seg(boatId)}/tours/search', query: {
+      'types': tourTypeNames.join(','),
+      'from': startTime.toUtc().toIso8601String(),
+      'to': endTime.toUtc().toIso8601String(),
+      'seats': count.toString(),
+    }) as List<dynamic>;
+    return data
+        .map((e) =>
+            TourModel.fromMap(e as Map<String, dynamic>, e['id'] as String))
+        .toList();
+  }
+
+  // Joins boatId's realtime room for as long as this stream has a listener,
+  // and emits once per relevant signal - a real 'tours:changed' event, or a
+  // reconnect (which could have missed one while briefly disconnected) -
+  // without owning a fetch itself. For screens like search that need to
+  // react to a boat's tours changing but decide for themselves when and how
+  // to refetch (with live filter values), unlike the other stream methods
+  // above which each own one fixed fetch for their whole lifetime.
+  Stream<void> watchBoatTourChanges(String boatId) {
+    late StreamController<void> controller;
+    StreamSubscription<void>? changesSub;
+    StreamSubscription<void>? connectedSub;
+
+    controller = StreamController<void>(
+      onListen: () async {
+        changesSub =
+            _realtime.toursChanged.listen((_) => controller.add(null));
+        connectedSub =
+            _realtime.onConnected.listen((_) => controller.add(null));
+        await _realtime.joinBoat(boatId);
       },
-      fingerprint: _fingerprintTours,
+      onCancel: () async {
+        await changesSub?.cancel();
+        await connectedSub?.cancel();
+        _realtime.leaveBoat(boatId);
+      },
     );
+    return controller.stream;
   }
 }

@@ -1,7 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import { verifyAccessToken } from "./lib/jwt";
 import { prisma } from "./lib/prisma";
-import { getAccessibleBoat, getAccessibleTour } from "./lib/authz";
+import { getAccessibleTour, getBoatByName } from "./lib/authz";
 import type { User } from "@prisma/client";
 
 interface AuthedSocket extends Socket {
@@ -30,10 +30,16 @@ export function registerSockets(io: Server) {
   io.on("connection", (socket) => {
     const authed = socket as AuthedSocket;
 
+    // boatId here is the boat's *name*, not its UUID - every client caller
+    // follows the same "boatId is really the name" convention the REST
+    // routes use (see getBoatByName's comment in lib/authz.ts). Resolve it
+    // the same way, and join using the resolved UUID so this matches the
+    // room key the REST routes actually broadcast to (emitToursChanged etc.
+    // are always called with the real boat.id, never the name).
     socket.on("join:boat", async (boatId: string, ack?: (ok: boolean) => void) => {
       try {
-        await getAccessibleBoat(authed.data.user, boatId);
-        socket.join(`boat:${boatId}`);
+        const boat = await getBoatByName(authed.data.user, boatId);
+        socket.join(`boat:${boat.id}`);
         ack?.(true);
       } catch {
         ack?.(false);
@@ -50,7 +56,17 @@ export function registerSockets(io: Server) {
       }
     });
 
-    socket.on("leave:boat", (boatId: string) => socket.leave(`boat:${boatId}`));
+    // Same name->UUID resolution as join:boat, so this actually targets the
+    // room the socket is really in. Best-effort: if the boat can't be
+    // resolved (e.g. renamed/deleted mid-session) there's nothing to leave.
+    socket.on("leave:boat", async (boatId: string) => {
+      try {
+        const boat = await getBoatByName(authed.data.user, boatId);
+        socket.leave(`boat:${boat.id}`);
+      } catch {
+        // no-op
+      }
+    });
     socket.on("leave:tour", (tourId: string) => socket.leave(`tour:${tourId}`));
   });
 }

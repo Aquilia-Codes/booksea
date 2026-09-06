@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:booksea_app/models/group_model.dart';
 import 'package:booksea_app/models/tour_model.dart';
 import 'package:booksea_app/models/type_model.dart';
@@ -60,6 +62,7 @@ class _SearchAndFilterScreenState extends State<SearchAndFilterScreen> {
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now().add(Duration(days: 7));
   int _passengerCount = 1;
+  StreamSubscription<void>? _boatWatchSub;
 
   @override
   void initState() {
@@ -71,6 +74,27 @@ class _SearchAndFilterScreenState extends State<SearchAndFilterScreen> {
 
     // Load tour types once
     _loadTourTypes();
+    _watchBoat(_boatId);
+  }
+
+  @override
+  void dispose() {
+    _boatWatchSub?.cancel();
+    super.dispose();
+  }
+
+  // Joins the boat's realtime room once for this screen's lifetime (or once
+  // per boat switch via the dropdown below) instead of once per filter tap -
+  // see ApiDatabase.watchBoatTourChanges. The empty setState() is what makes
+  // the inline searchTours(...) call in build() re-run when a push signal
+  // (or a reconnect) arrives, exactly as if the user had touched a filter.
+  void _watchBoat(String boatId) {
+    _boatWatchSub?.cancel();
+    _boatWatchSub = Provider.of<ApiDatabase>(context, listen: false)
+        .watchBoatTourChanges(boatId)
+        .listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   void _loadTourTypes() async {
@@ -117,6 +141,9 @@ class _SearchAndFilterScreenState extends State<SearchAndFilterScreen> {
                         _selectedTourTypes = [];
                         _loadTourTypes(); // Reload tour types for the new boat
                       });
+                      // Leave the old boat's room and join the new one -
+                      // see _watchBoat.
+                      _watchBoat(_boatId);
                     },
                     decoration: InputDecoration(
                       enabledBorder: OutlineInputBorder(
@@ -361,9 +388,9 @@ class _SearchAndFilterScreenState extends State<SearchAndFilterScreen> {
               ),
               SizedBox(height: 24),
               Expanded(
-                child: StreamBuilder<List<dynamic>>(
-                  stream: _selectedTourTypes.isEmpty
-                      ? Stream.value([])
+                child: FutureBuilder<List<TourModel>>(
+                  future: _selectedTourTypes.isEmpty
+                      ? Future.value(<TourModel>[])
                       : Provider.of<ApiDatabase>(context, listen: false)
                           .searchTours(
                           _companyId,

@@ -780,7 +780,7 @@ void showTourSelectionModal(
 }
 
 //Tour data stream scrollable list
-class TourDataStream extends StatelessWidget {
+class TourDataStream extends StatefulWidget {
   final String companyId;
   final String boatId;
   final DateTime selectedDate;
@@ -794,15 +794,54 @@ class TourDataStream extends StatelessWidget {
       required this.firestoreDatabase});
 
   @override
+  State<TourDataStream> createState() => _TourDataStreamState();
+}
+
+class _TourDataStreamState extends State<TourDataStream> {
+  late Stream<Map<String, dynamic>> _sumStream;
+  late Stream<List<TourModel>> _toursStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribeStreams();
+  }
+
+  @override
+  void didUpdateWidget(covariant TourDataStream oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only re-derive the streams (and, via the socket.io room they open,
+    // leave + rejoin the boat's room) when the boat or the selected day
+    // actually changed - not on every rebuild of this widget. Before this,
+    // both streams were built inline in `build()`, so any unrelated
+    // HomeScreen rebuild recreated them from scratch; that was just wasted
+    // polling under the old _pollStream, but now it means a real
+    // leave/rejoin round-trip and a blank list while the rejoin's ack comes
+    // back - exactly the kind of hitch a socket-backed stream shouldn't
+    // have on every rebuild.
+    final sameDay = oldWidget.selectedDate.year == widget.selectedDate.year &&
+        oldWidget.selectedDate.month == widget.selectedDate.month &&
+        oldWidget.selectedDate.day == widget.selectedDate.day;
+    if (oldWidget.boatId != widget.boatId || !sameDay) {
+      _subscribeStreams();
+    }
+  }
+
+  void _subscribeStreams() {
+    final dayStart = DateTime(widget.selectedDate.year,
+        widget.selectedDate.month, widget.selectedDate.day, 0, 0, 0);
+    final dayEnd = DateTime(widget.selectedDate.year,
+        widget.selectedDate.month, widget.selectedDate.day, 23, 59, 59);
+    _sumStream = widget.firestoreDatabase.getSumOfPriceStream(
+        widget.companyId, widget.boatId, dayStart, dayEnd);
+    _toursStream = widget.firestoreDatabase.getToursStream(
+        widget.companyId, widget.boatId, dayStart, dayEnd);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<Map<String, dynamic>>(
-      stream: firestoreDatabase.getSumOfPriceStream(
-          companyId,
-          boatId,
-          DateTime(
-              selectedDate.year, selectedDate.month, selectedDate.day, 0, 0, 0),
-          DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 23,
-              59, 59)),
+      stream: _sumStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: Text(''));
@@ -831,13 +870,7 @@ class TourDataStream extends StatelessWidget {
               ),
               Expanded(
                 child: StreamBuilder<List<TourModel>>(
-                  stream: firestoreDatabase.getToursStream(
-                      companyId,
-                      boatId,
-                      DateTime(selectedDate.year, selectedDate.month,
-                          selectedDate.day, 0, 0, 0),
-                      DateTime(selectedDate.year, selectedDate.month,
-                          selectedDate.day, 23, 59, 59)),
+                  stream: _toursStream,
                   builder: (context, tourSnapshot) {
                     if (tourSnapshot.connectionState ==
                         ConnectionState.waiting) {
@@ -857,9 +890,9 @@ class TourDataStream extends StatelessWidget {
                             children: [
                               TourCard(
                                   tour: tour,
-                                  firestoreDatabase: firestoreDatabase,
-                                  companyId: companyId,
-                                  boatId: boatId),
+                                  firestoreDatabase: widget.firestoreDatabase,
+                                  companyId: widget.companyId,
+                                  boatId: widget.boatId),
                               if (index == tourSnapshot.data!.length - 1)
                                 const SizedBox(height: 100),
                             ],
