@@ -11,10 +11,9 @@ class ApiException implements Exception {
 }
 
 /// Thin REST client for the Express/Postgres backend that replaces
-/// Firestore. Holds the JWT access/refresh pair in memory only - wiring
-/// this up to real persistence and to the Google idToken -> JWT exchange is
-/// phase 6 ("swap auth", see docs/migration-notes.md); until then, tokens
-/// are set manually for testing (see AuthProvider.kBypassFirebaseAuth).
+/// Firestore. Holds the JWT access/refresh pair in memory only - persisted
+/// across cold starts via the refresh token stored in SharedPreferences
+/// (see AuthProvider._tryRestoreSession).
 class ApiClient {
   ApiClient._();
   static final instance = ApiClient._();

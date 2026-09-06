@@ -1,5 +1,4 @@
 import 'package:booksea_app/flavour.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:booksea_app/my_app.dart';
@@ -10,13 +9,6 @@ import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    // TEMP: backend migration in progress, Firebase may be unreachable.
-    // Auth is bypassed (see kBypassFirebaseAuth); keep booting regardless.
-    print('Firebase.initializeApp failed: $e');
-  }
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) async {
     runApp(

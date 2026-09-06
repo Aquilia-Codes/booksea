@@ -40,7 +40,7 @@ just the raw points to turn into prose later.
   table drafted in advance. This is why a straight backend swap was chosen
   over the in-progress BLoC rewrite: BLoC would rebuild every screen to get
   back to functionality the app already has. BLoC is still worth doing later,
-  incrementally, screen by screen, *after* the app runs on the new backend.
+  incrementally, screen by screen, _after_ the app runs on the new backend.
 
 ## Three pre-existing bugs the new schema fixes by design
 
@@ -90,43 +90,43 @@ URL, which is what stops one company reading another's data.
 
 ## Route map (FirestoreDatabase method -> Express endpoint)
 
-| Old method | Endpoint | Notes |
-|---|---|---|
-| getUser | GET /me | From JWT subject |
-| setUser | PATCH /me | |
-| writeCompanyIdToUserDocument | POST /me/company | Body `{ companyCode }` |
-| companyExists | — | Folded into the join above |
-| getTours | GET /boats/:id/tours | `?from=&to=` |
-| getToursStream | GET /boats/:id/tours | Same route + socket room |
-| getSumOfPriceStream | GET /boats/:id/tours/summary | Totals + this user's provision |
-| searchTours | GET /boats/:id/tours/search | `?types=&from=&to=&seats=` |
-| createTour | POST /boats/:id/tours | 409 on overlap |
-| updateTour | PATCH /tours/:id | |
-| deleteTour | DELETE /tours/:id | Cascades to groups |
-| getGroups | GET /tours/:id/groups | + socket room |
-| getGroup | GET /groups/:id | |
-| createGroup | POST /tours/:id/groups | 409 over capacity |
-| updateGroup | PATCH /groups/:id | |
-| deleteGroup | DELETE /groups/:id | |
-| updateGroupHasArrived | PATCH /groups/:id/arrival | Body `{ hasArrived }` |
-| getTourTypesAndBoatInfo | GET /boats/:id | Boat + its tour types |
-| getTypeInfo | GET /boats/:id/tour-types/:name | |
-| createBoat | POST /companies/:id/boats | |
+| Old method                   | Endpoint                        | Notes                          |
+| ---------------------------- | ------------------------------- | ------------------------------ |
+| getUser                      | GET /me                         | From JWT subject               |
+| setUser                      | PATCH /me                       |                                |
+| writeCompanyIdToUserDocument | POST /me/company                | Body `{ companyCode }`         |
+| companyExists                | —                               | Folded into the join above     |
+| getTours                     | GET /boats/:id/tours            | `?from=&to=`                   |
+| getToursStream               | GET /boats/:id/tours            | Same route + socket room       |
+| getSumOfPriceStream          | GET /boats/:id/tours/summary    | Totals + this user's provision |
+| searchTours                  | GET /boats/:id/tours/search     | `?types=&from=&to=&seats=`     |
+| createTour                   | POST /boats/:id/tours           | 409 on overlap                 |
+| updateTour                   | PATCH /tours/:id                |                                |
+| deleteTour                   | DELETE /tours/:id               | Cascades to groups             |
+| getGroups                    | GET /tours/:id/groups           | + socket room                  |
+| getGroup                     | GET /groups/:id                 |                                |
+| createGroup                  | POST /tours/:id/groups          | 409 over capacity              |
+| updateGroup                  | PATCH /groups/:id               |                                |
+| deleteGroup                  | DELETE /groups/:id              |                                |
+| updateGroupHasArrived        | PATCH /groups/:id/arrival       | Body `{ hasArrived }`          |
+| getTourTypesAndBoatInfo      | GET /boats/:id                  | Boat + its tour types          |
+| getTypeInfo                  | GET /boats/:id/tour-types/:name |                                |
+| createBoat                   | POST /companies/:id/boats       |                                |
 
 Auth: `POST /auth/google` (verify idToken, issue JWTs), `POST /auth/refresh`,
 `POST /auth/logout`.
 
 ## Realtime (socket.io)
 
-| Room | Server event | Emitted after |
-|---|---|---|
-| boat:\<boatId\> | tours:changed | Tour create/update/delete |
-| boat:\<boatId\> | summary:changed | Any price-affecting write |
-| tour:\<tourId\> | groups:changed | Group create/update/delete/arrival |
+| Room            | Server event    | Emitted after                      |
+| --------------- | --------------- | ---------------------------------- |
+| boat:\<boatId\> | tours:changed   | Tour create/update/delete          |
+| boat:\<boatId\> | summary:changed | Any price-affecting write          |
+| tour:\<tourId\> | groups:changed  | Group create/update/delete/arrival |
 
 Rule 1: authenticate the socket handshake with the same JWT and refuse a room
 join for a boat the user has no `user_boats` row for — otherwise rooms leak
-data across companies. Rule 2: emit a change *signal*, not the changed data —
+data across companies. Rule 2: emit a change _signal_, not the changed data —
 the client refetches the REST endpoint it already has, so there's one code
 path for reads and no risk of socket/REST payloads drifting apart.
 
@@ -197,7 +197,6 @@ after inactivity and drops connections — client needs reconnect-with-backoff
    createGroup, updateGroupHasArrived, getGroups, delete cleanup — against
    the live database. This caught three more real bugs before they could
    surface at runtime in the app:
-
    1. **Boat "id" was actually always a name.** The old Firestore backend
       used `boats.name` as the Firestore document id, so
       `AuthProvider.boatIds` (and every `boatId` parameter threaded through
@@ -233,6 +232,7 @@ after inactivity and drops connections — client needs reconnect-with-backoff
    — the smoke script didn't cover every method, only enough to validate the
    client/server contract end to end. Full coverage happens naturally once
    the app itself is driven manually (phase 6+).
+
 6. ~~Swap auth~~ — done 2026-09-02, with one caveat (see below).
    `AuthProvider` (`lib/providers/auth_provider.dart`) was rewritten from
    scratch: keeps the exact same `Status` enum and `Stream<UserModel> user`
@@ -260,7 +260,7 @@ after inactivity and drops connections — client needs reconnect-with-backoff
    `flutter analyze`: 0 new errors (96 total, all pre-existing-pattern
    lint infos plus prints in throwaway test scripts). Verified for real,
    not just typechecked: exported `issueTokens` from `backend/src/routes/
-   auth.ts` so `seed-smoke-test.ts` could mint a real access+refresh pair,
+auth.ts` so `seed-smoke-test.ts` could mint a real access+refresh pair,
    then exercised `POST /auth/refresh` (rotates correctly; the old token
    is rejected with 401 immediately after) and `POST /auth/logout`
    (revokes; the revoked token can no longer refresh) directly against the
@@ -284,7 +284,7 @@ after inactivity and drops connections — client needs reconnect-with-backoff
 ## Google OAuth: moved to a fresh, independently-owned project (2026-09-04)
 
 The click-test above surfaced a real problem: `ApiException: 10`
-(`DEVELOPER_ERROR`) from Google's own sign-in SDK, on the *first* attempt.
+(`DEVELOPER_ERROR`) from Google's own sign-in SDK, on the _first_ attempt.
 This happens entirely client-side, before any request reaches our backend —
 it means the certificate signing the app build isn't registered against an
 OAuth client Google recognizes, so the sign-in screen refuses to open at
@@ -300,6 +300,7 @@ project** with its own OAuth clients instead. Fully decoupled from the old
 project; project number `865744272369` vs. the old `683257674665`.
 
 Two OAuth clients were needed, not one — worth remembering why:
+
 - **Android client** (package `codes.aquilia.booksea_app` + the local
   debug keystore's SHA-1 fingerprint) — this is what was actually missing,
   and what the `DEVELOPER_ERROR` was about. It's what lets Google's SDK
@@ -308,7 +309,7 @@ Two OAuth clients were needed, not one — worth remembering why:
   no JS origins/redirect URIs needed — it's never used for an actual
   browser redirect flow) — passed as `serverClientId` to `GoogleSignIn()`
   in `lib/providers/auth_provider.dart`, so the idToken Google issues is
-  addressed to *this* client. The backend's `google-auth-library` check
+  addressed to _this_ client. The backend's `google-auth-library` check
   verifies the token's audience against `GOOGLE_OAUTH_CLIENT_IDS`, which
   must be a Web client id for this to work — the Android client's id
   doesn't work as a verifiable server-side audience the same way.
@@ -317,7 +318,7 @@ Updated to the new Web client id: `backend/.env` (local),
 `backend/.env.example`, `render.yaml`, and the deployed Render service's
 env var (done manually in the Render dashboard, not tracked in this repo).
 
-**Caveat**: only the *local debug* keystore's SHA-1 is registered so far.
+**Caveat**: only the _local debug_ keystore's SHA-1 is registered so far.
 A release build (Play Store, or any signed build handed to someone else)
 uses a different certificate with a different SHA-1, which will hit the
 same `DEVELOPER_ERROR` until that fingerprint is added too (same Android
@@ -366,7 +367,7 @@ the app rather than by review:
   just invisible until now. Fixed to compute a rolling window (1 year
   back/forward from whenever the widget actually initializes) instead of
   fixed calendar dates.
-- **No self-service tour *type* creation**, same situation as company/boat
+- **No self-service tour _type_ creation**, same situation as company/boat
   creation - never existed, even in the old app. The "+" add-tour button
   needs at least one tour type to exist for the boat or its dropdown is
   empty. Added `backend/scripts/seed-tour-types.ts` (usage: company code,
@@ -374,7 +375,7 @@ the app rather than by review:
   project's actual boat) - same pattern as `bootstrap-company.ts`.
 - **Found while building that script: a real timezone bug on the write
   side.** `new Date('1970-01-01T18:00:00')` (no trailing `Z`) parses as
-  *local* time in JS, but Postgres's timezone-naive `time` column round-trips
+  _local_ time in JS, but Postgres's timezone-naive `time` column round-trips
   through Prisma as UTC-anchored - so without the `Z`, every seeded time
   came back an hour off (18:00 in, 17:00 out) on this dev machine. Fixed by
   always constructing these as explicit UTC (`...T18:00:00Z`). Only affects
@@ -396,7 +397,7 @@ the app rather than by review:
   arrays always decode as `List<dynamic>`, which Dart doesn't implicitly
   narrow to `List<String>`. This fired on every Home screen load (via
   `getTourTypesAndBoatInfo`, called through a bare `.then()` with no error
-  handler - so it failed *silently*, printing to console but not crashing
+  handler - so it failed _silently_, printing to console but not crashing
   visibly, leaving `types` empty) and again, visibly this time, whenever
   tour creation touched `getTypeInfo`. Fixed with an explicit
   `.cast<String>()`.
@@ -462,30 +463,28 @@ were always meant to be temporary standing for.
 are now fully orphaned — nothing imports them anymore — but left in
 place rather than deleted, matching the plan's phase 8 ("remove
 Firebase" comes last, together with dropping the pubspec dependencies
-   and `google-services.json`).
-7. Wire the sockets — replace polling/placeholder refetches with socket.io
-   rooms. Done last: the app is fully working before this phase; it only
-   makes updates faster.
-8. Remove Firebase — drop `firebase_core`, `firebase_auth`, `cloud_firestore`
-   from `pubspec.yaml`, delete `google-services.json`, let the compiler find
-   anything left behind (including `kBypassFirebaseAuth` in
-   `auth_provider.dart`, added as a temporary testing shim on 2026-09-01).
+and `google-services.json`). 7. Wire the sockets — replace polling/placeholder refetches with socket.io
+rooms. Done last: the app is fully working before this phase; it only
+makes updates faster. 8. Remove Firebase — drop `firebase_core`, `firebase_auth`, `cloud_firestore`
+from `pubspec.yaml`, delete `google-services.json`, let the compiler find
+anything left behind (including `kBypassFirebaseAuth` in
+`auth_provider.dart`, added as a temporary testing shim on 2026-09-01).
 
 ## Flutter-side impact (by file)
 
-| File | Lines | Change |
-|---|---|---|
-| services/firestore_database.dart | 441 | Rewritten as api_database.dart |
-| providers/auth_provider.dart | 193 | Firebase Auth -> JWT |
-| services/firestore_service.dart | 71 | Replaced by an HTTP client |
-| services/firestore_path.dart | 39 | Becomes the route builder |
-| models/tour_model.dart | 69 | Timestamp -> DateTime |
-| models/type_model.dart | 60 | Timestamp -> DateTime |
-| auth_widget_builder.dart | 49 | Stream source only |
-| ui/home/no_code_home.dart | 91 | One currentUser call |
-| ui/home/home.dart | 2,756 | Import + 4 Timestamp calls |
-| ui/search/search_and_filter.dart | 2,297 | Import + 2 Timestamp calls |
-| Everything else | 1,382 | Untouched |
+| File                             | Lines | Change                         |
+| -------------------------------- | ----- | ------------------------------ |
+| services/firestore_database.dart | 441   | Rewritten as api_database.dart |
+| providers/auth_provider.dart     | 193   | Firebase Auth -> JWT           |
+| services/firestore_service.dart  | 71    | Replaced by an HTTP client     |
+| services/firestore_path.dart     | 39    | Becomes the route builder      |
+| models/tour_model.dart           | 69    | Timestamp -> DateTime          |
+| models/type_model.dart           | 60    | Timestamp -> DateTime          |
+| auth_widget_builder.dart         | 49    | Stream source only             |
+| ui/home/no_code_home.dart        | 91    | One currentUser call           |
+| ui/home/home.dart                | 2,756 | Import + 4 Timestamp calls     |
+| ui/search/search_and_filter.dart | 2,297 | Import + 2 Timestamp calls     |
+| Everything else                  | 1,382 | Untouched                      |
 
 Roughly 900 lines are genuinely rewritten; the ~5,053 lines of screen code
 (calendar, filters, booking forms, QR scanner) are touched only where they
@@ -521,7 +520,7 @@ docs later:
 - **Render is live** (deployed manually, not via the `render.yaml`
   blueprint — the Postgres instance was created by hand first via
   "New → PostgreSQL", so the web service was then also created by hand via
-  "New → Web Service" pointed at the same database's *Internal* connection
+  "New → Web Service" pointed at the same database's _Internal_ connection
   URL, rather than letting the blueprint provision a second, separate
   database). Root directory `backend`, build command
   `npm install && npm run prisma:generate && npm run build`, start command
@@ -621,7 +620,7 @@ double-checking each one by hand rather than trusting `tsc --noEmit` alone.
   Cause: `ApiClient.baseUrl` now defaults to the deployed Render backend
   (changed a few turns ago for the real app), and the script never
   overrode it back to `localhost:4000` - so it was sending a token signed
-  with the *local* `JWT_ACCESS_SECRET` to *Render's* backend, which has a
+  with the _local_ `JWT_ACCESS_SECRET` to _Render's_ backend, which has a
   different secret and correctly rejected the signature. Not a code bug,
   a stale test fixture; fixed by having the script set
   `ApiClient.baseUrl = 'http://localhost:4000'` explicitly at startup,
@@ -644,7 +643,7 @@ double-checking each one by hand rather than trusting `tsc --noEmit` alone.
   blocker, just an annoyance for now.
 - **"Free spaces" pill overflowing once a tour has any arrivals.** In
   `home.dart`'s tour card, `tour.arrived > 0` switches the capacity
-  indicator from one pill (`filled / capacity`) to *two* pills side by side
+  indicator from one pill (`filled / capacity`) to _two_ pills side by side
   (`arrived / filled` and `capacity - filled`) inside the same fixed
   `Expanded(flex: 1)` space that only ever fit one - the two pills plus
   their padding and gap don't fit, causing a classic Flutter "RenderFlex
@@ -678,7 +677,7 @@ Found a real, independently serious bug in all four group forms (create +
 edit, in both `home.dart` and `search_and_filter.dart`): the price field's
 `FutureBuilder` called `widget.firestoreDatabase.getTypeInfo(...)` **directly
 inline** as its `future:` argument. A `StatefulWidget`'s `build()` runs on
-every `setState()` - which every keystroke in *any* field in the form
+every `setState()` - which every keystroke in _any_ field in the form
 triggers (via `_updateButtonState`) - so this created a brand new `Future`
 (and fired a brand new network request) on every keystroke across the whole
 form, not just the phone field. `FutureBuilder` treats a new future
@@ -719,17 +718,17 @@ every one of the fixes up to this point (external `FocusNode`, disabled
 autovalidate, the cached-future fix above) was aimed at the wrong layer.
 The actual signal in the log was Android's own IME tracker:
 `onRequestHide ... reason HIDE_SOFT_INPUT_BY_INSETS_API` firing shortly
-after the first keystroke, followed by `onHidden` - the *operating system*
+after the first keystroke, followed by `onHidden` - the _operating system_
 hiding the keyboard on its own initiative, not Flutter dropping focus.
 
 This reframing led to two more real bugs, found by reading exactly what
 else was happening around that log line:
 
 1. **`openTourPopup` (both files) showed `TourPopup` via `showDialog`,
-   and `openGroupAddPopup` shows the group form via a *second*, nested
+   and `openGroupAddPopup` shows the group form via a _second_, nested
    `showDialog` on top of it while the first stays mounted underneath.**
    Flutter's `Dialog`/`AlertDialog` automatically pads itself by
-   `MediaQuery.viewInsets.bottom` to stay clear of *any* open keyboard -
+   `MediaQuery.viewInsets.bottom` to stay clear of _any_ open keyboard -
    including one belonging to a completely different, layered-on-top
    dialog. `TourPopup`'s dialog has a fixed-size `SizedBox` (60% of full
    screen height, computed once, never intended to change), so when it
@@ -737,14 +736,14 @@ else was happening around that log line:
    content overflowed - confirmed directly in the log
    (`RenderFlex overflowed by 1.2 pixels`, then 35 on a later attempt) at
    the exact moment the nested dialog's keyboard was animating in. First
-   fix attempt (`resizeToAvoidBottomInset: false` on the *inner* Scaffold)
+   fix attempt (`resizeToAvoidBottomInset: false` on the _inner_ Scaffold)
    was based on a wrong assumption about which layer was shrinking and
    had zero effect - the actual fix had to go one level up, wrapping the
    dialog's content in `MediaQuery.removeViewInsets(removeBottom: true)`
    in `openTourPopup` itself. This did eliminate the overflow exception.
 2. **`GroupDataStream` (both files) had the exact same "future recreated
-   in `build()`" bug as the price field, but for the *existing groups
-   list* shown on `TourPopup` itself** - `getGroups(...)` was called
+   in `build()`" bug as the price field, but for the _existing groups
+   list_ shown on `TourPopup` itself** - `getGroups(...)` was called
    inline as the `StreamBuilder`'s `stream:` argument, in a
    `StatelessWidget`, so it fired a fresh network request and reset to a
    loading state on every rebuild of the underlying `TourPopup` route -
@@ -783,7 +782,7 @@ once the keyboard question is resolved one way or the other.
 The MIUI/"secure keyboard" hypothesis above turned out to be a dead end. The
 user made the observation that broke the case open: the group-add form has
 several other numeric-keypad fields (Adult Count, Child Count, Price - plain
-`TextField`s with `keyboardType: TextInputType.number`), and *none* of them
+`TextField`s with `keyboardType: TextInputType.number`), and _none_ of them
 exhibit the bug - only the Mobile Number field does. A device/OS/IME-app-wide
 quirk would affect every numeric field equally, so the bug had to be specific
 to something about the `IntlPhoneField` widget itself, not the platform.
@@ -863,7 +862,7 @@ needed a `RealtimeClient.instance.disconnect(); exit(0);` added at the end,
 since an open socket connection otherwise keeps the Dart VM alive and the
 script never exits) and a temporary script that subscribed to `getGroups`
 as a live stream, waited for the initial empty emission, then created a
-group through a *separate* REST call and confirmed a second emission
+group through a _separate_ REST call and confirmed a second emission
 arrived within 5 seconds purely from the socket signal - proving the push
 path works, not just the initial fetch. That script was deleted after use.
 
@@ -884,16 +883,17 @@ it surfaced two real, worth-fixing issues.
 fixed everywhere else earlier in phase 7. Under the old polling this was
 just wasteful; under socket rooms it meant a real leave+rejoin network
 round-trip on every rebuild - `TourDataStream` on every date-picker change,
-and the search screen on *every single filter tap* (passenger count,
+and the search screen on _every single filter tap_ (passenger count,
 tour-type chips, dates), which is a much hotter path.
 
 Fixed differently in each case, since the right shape of fix differs:
+
 - `TourDataStream` was converted from `StatelessWidget` to a proper
   `StatefulWidget` caching both streams in `initState`/`didUpdateWidget`,
   only re-deriving them when `boatId` or the selected day actually changed -
   the same pattern used elsewhere in the file (`GroupDataStream`, the group
   popups' cached futures).
-- The search screen's case is different: a filter change is *supposed* to
+- The search screen's case is different: a filter change is _supposed_ to
   produce a new search, so recomputing the fetch on every rebuild is
   correct, not a bug - `searchTours` was changed from a
   `Stream<List<TourModel>>` (which owned a join + a fixed fetch) to a plain
@@ -913,7 +913,7 @@ app) - it never exercised the `joinBoat` path at all, which is what
 `getToursStream`/`getSumOfPriceStream`/`searchTours` all depend on. The bug:
 `sockets.ts`'s `join:boat` handler called `getAccessibleBoat`, which looks a
 boat up **by its UUID primary key** - but every client caller passes the
-boat's *name* (`"Catamaran"`), matching the same "boatId is really the
+boat's _name_ (`"Catamaran"`), matching the same "boatId is really the
 name" convention the REST boat routes already handle via `getBoatByName`
 (see `lib/authz.ts`). So `join:boat` was silently failing (caught, acked
 `false`) on every call, the socket never actually entered the
@@ -924,7 +924,7 @@ exactly why this went unnoticed - the tour list and price summary loaded
 correctly, they just silently never got a single push update afterwards.
 
 Fixed by resolving `join:boat`/`leave:boat` with `getBoatByName` instead of
-`getAccessibleBoat`, and joining/leaving using the *resolved* UUID so the
+`getAccessibleBoat`, and joining/leaving using the _resolved_ UUID so the
 room key actually matches what the REST routes broadcast to. Re-verified
 both the search screen's `watchBoatTourChanges` and, specifically,
 `getToursStream` itself (the one home.dart actually uses) with the same
@@ -933,12 +933,126 @@ emission arrives" script used in phase 7 - both now pass. Lesson for next
 time: when a stream/room is boat-scoped, verify with a boat-scoped
 call specifically - the tour-scoped one passing proved nothing about it.
 
+## Phase 8: Firebase removed entirely (2026-09-06)
+
+With auth and realtime both fully proven against the new backend, removed
+Firebase from the app completely rather than leaving it as unused dead
+weight.
+
+**Removed:**
+
+- `pubspec.yaml`: `cloud_firestore`, `firebase_core`, `firebase_auth`.
+- `lib/main.dart`: the `Firebase.initializeApp()` try/catch (it was already
+  just a "keep booting if unreachable" shim from mid-migration).
+- `lib/providers/auth_provider.dart`: the `kBypassFirebaseAuth` flag and its
+  fake-user bypass branch - its own doc comment said to remove it "once
+  confirmed working end to end," which today's testing satisfied.
+- Three fully dead files: `lib/services/firestore_database.dart`,
+  `firestore_service.dart`, `firestore_path.dart` - confirmed unreferenced
+  by anything except each other before deleting (`ApiDatabase` replaced
+  `FirestoreDatabase` everywhere back in phase 4-5).
+- `android/app/google-services.json`, the `com.google.gms.google-services`
+  Gradle plugin (both its `apply false` declaration in the root
+  `android/build.gradle` and its application in `android/app/build.gradle`),
+  and the native `firebase-bom`/`firebase-analytics`/`firebase-messaging`
+  dependencies in `android/app/build.gradle` - none of the latter two had
+  any corresponding Flutter plugin in `pubspec.yaml` to begin with, so they
+  were already dead weight even before today. Kept `play-services-auth`/
+  `play-services-base` - those back `google_sign_in`, not Firebase.
+- Incidentally found and fixed a pre-existing typo while in
+  `android/app/build.gradle`: its `plugins {` block was actually written as
+  `herplugins {`, which is not valid Gradle syntax. Unrelated to Firebase,
+  but on the exact line being edited anyway, and would have broken the
+  build the next time Gradle's configuration cache was invalidated (a clean
+  build, a cache clear, CI) even if left alone.
+
+**Verified:**
+
+- `flutter analyze`: clean, no errors.
+- `flutter pub get`: resolves cleanly; `pubspec.lock` confirmed to contain
+  zero firebase/cloud_firestore packages afterward.
+- `flutter build apk --debug`: succeeds - this is the real test of the
+  Gradle surgery (typo fix, plugin removal, dependency removal), since none
+  of that is checked by `flutter analyze` at all.
+- `flutter run -d windows`: app launches and reaches the running state
+  (theme provider initializes, no crash) with `Firebase.initializeApp()`
+  gone entirely - confirms `main.dart`'s change doesn't break startup.
+- **Not yet verified**: the actual Google Sign-In handshake on a real
+  Android device (no device was connected during this pass - desktop can't
+  exercise it, `google_sign_in`'s Android implementation is a separate code
+  path). This should still work - `google_sign_in` talks to Play Services
+  directly via `serverClientId`, never through Firebase - but it's the one
+  piece of this removal that genuinely needs a real device to confirm.
+
+### Old (Firebase) vs. new (self-hosted) - structure and dataflow compared
+
+**Data model.** Firestore was a nested document tree, walked by hand-built
+path strings (`lib/services/firestore_path.dart`, now deleted):
+`company/{companyId}/boats/{boatId}/tours/{tourId}/groups/{groupId}`, a
+parallel `.../tourTypes/{tourTypeId}` subcollection, and a flat top-level
+`users/{userId}` collection. There was no schema enforcement beyond
+whatever the client happened to write - which is exactly how the three
+pre-existing bugs noted earlier in this log (missing `price` field, string
+vs. number counters, etc.) went unnoticed for so long. The new backend is a
+normal relational schema (`backend/prisma/schema.prisma`): `companies`,
+`boats`, `tours`, `booking_groups`, `tour_types`, `users` as real tables
+with foreign keys, a Postgres enum for `payment_status`, a derived SQL view
+(`tour_totals`) instead of hand-maintained counters, and a `gist` exclusion
+constraint that makes overlapping tours on the same boat impossible to
+insert at the database level rather than merely discouraged by client code.
+
+**Auth.** The old `AuthProvider` held a live `FirebaseAuth` instance and
+exposed `_auth.authStateChanges()` directly as its `user` stream - Firebase
+managed the session token, its refresh, and change notification entirely
+inside the SDK; the app just reacted to whatever `User?` came out the other
+end. Google sign-in produced a Firebase `UserCredential` via
+`GoogleAuthProvider.credential(...)`. The new flow has no such SDK backing
+it: `signInWithGoogle()` gets a Google idToken exactly as before, but now
+POSTs it to `/auth/google`, which this app's own backend verifies and
+exchanges for this app's own JWT access/refresh pair (`backend/src/routes/auth.ts`).
+Everything Firebase used to do invisibly - persisting the session,
+refreshing an expiring token, deduplicating concurrent refreshes - is now
+explicit application code: the refresh token in `SharedPreferences`
+(`AuthProvider._persistRefreshToken`/`_tryRestoreSession`), and the
+single-flight refresh dedup in `ApiClient._refreshOnce`.
+
+**Realtime.** `FirestoreService.collectionStream`/`documentStream` wrapped
+Firestore's native `.snapshots()` - a live, per-query subscription
+maintained entirely by Google's infrastructure, reconnecting on its own,
+requiring zero server-side code at all. Losing access to the Firebase
+project meant losing that mechanism entirely, with nothing to fall back on
+but re-fetching. The replacement had to be built from scratch: an initial
+polling stand-in (phases 4-6), then real push via a self-hosted Socket.IO
+server (phase 7) - authenticated by hand with the same JWT, scoped by hand
+into per-boat/per-tour rooms, triggered by hand from each mutating route.
+Firestore's version needed no application code and scaled/reconnected
+transparently; the new version needed all of that written and (as phase
+7's follow-up bug showed) is easy to get subtly wrong in a way that fails
+silently instead of loudly.
+
+**Authorization.** Firestore access was governed by declarative Security
+Rules living in the Firebase project itself. The new backend has no
+equivalent declarative layer - every route explicitly calls into
+`backend/src/lib/authz.ts` (`getAccessibleBoat`/`getAccessibleTour`/
+`getAccessibleGroup`) to check the caller's company/boat membership before
+touching data, and the socket layer (`sockets.ts`) reuses those exact same
+functions rather than any separate ruleset. More verbose, but also fully
+visible and versioned in this repo rather than living in a separate
+console.
+
+**Hosting.** Firebase was fully managed - no server to run, patch, or
+restart, but also no visibility into it and (as this whole migration
+proves) no guaranteed continued access. The new stack is self-hosted on
+Render: a real Node process that can crash, sleep (free tier), or need a
+manual restart, and a real Postgres instance this project is now
+responsible for backing up and eventually paying for past the 30-day free
+trial - full control traded for full ownership of the operational burden.
+
 ## Open items (need user input)
 
 - Confirm the multi-owner recommendation above (or pick single-owner) before
   it's built into the schema/`companies`/`users` routes.
 - Who can grant `hasAccess`/`isAdmin`/boat assignments day-to-day — a real
   admin-facing endpoint doesn't exist yet, only the data model supports it.
-- `kBypassFirebaseAuth` (auth_provider.dart) and the `Firebase.initializeApp()`
-  try/catch (main.dart) are temporary testing shims from before this stack
-  was decided — remove once real auth against the new backend lands (phase 6).
+- ~~`kBypassFirebaseAuth` (auth_provider.dart) and the `Firebase.initializeApp()`
+  try/catch (main.dart)~~ - done, see phase 8.

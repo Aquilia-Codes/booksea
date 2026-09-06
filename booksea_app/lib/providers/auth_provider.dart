@@ -19,15 +19,6 @@ enum Status {
   NoAccess
 }
 
-// TEMP: set this to true to skip the real Google->JWT flow below and
-// auto-authenticate a fake admin/owner user, without any network calls.
-// The real flow (kBypassFirebaseAuth = false) has been exercised against
-// the live backend via ApiDatabase, but the interactive Google sign-in
-// button itself hasn't been click-tested in a running app yet - flip this
-// back to true if that turns out to need more work, and remove this flag
-// entirely once it's confirmed working end to end.
-const bool kBypassFirebaseAuth = false;
-
 // The Web OAuth client (not the Android one) - passed as serverClientId so
 // Google addresses the idToken to this client specifically. The backend
 // verifies the token's audience against this same id (GOOGLE_OAUTH_CLIENT_IDS
@@ -37,18 +28,6 @@ const bool kBypassFirebaseAuth = false;
 // project (see docs/migration-notes.md).
 const _googleServerClientId =
     '865744272369-atobvfr5mo0s5prs63v99rg5872ehgp2.apps.googleusercontent.com';
-
-final UserModel _fakeUser = UserModel(
-  uid: 'debug-fake-uid',
-  email: 'debug@booksea.local',
-  nickname: 'Debug User',
-  provision: 0,
-  hasAccess: true,
-  isAdmin: true,
-  isOwner: true,
-  companyId: 'debug-company',
-  boatIds: const ['Catamaran', 'Yacht'],
-);
 
 final _emptyUser = UserModel(
   uid: '',
@@ -85,14 +64,6 @@ class AuthProvider extends ChangeNotifier {
   Stream<UserModel> get user => _userController.stream;
 
   AuthProvider() {
-    if (kBypassFirebaseAuth) {
-      _companyId = _fakeUser.companyId;
-      _boatIds = List<String>.from(_fakeUser.boatIds);
-      _currentUser = _fakeUser;
-      _status = Status.Authenticated;
-      _userController.add(_fakeUser);
-      return;
-    }
     _userController.add(_emptyUser);
     _tryRestoreSession();
   }
